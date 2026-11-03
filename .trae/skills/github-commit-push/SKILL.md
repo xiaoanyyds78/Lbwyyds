@@ -11,8 +11,14 @@ description: 将当前项目的全部改动提交并推送到 GitHub 仓库 Lbwy
 
 1. 定位 git。本机 git 可能不在 PATH，按顺序查找：`Get-Command git` → `C:\Program Files\Git\cmd\git.exe` → `C:\Program Files (x86)\Git\cmd\git.exe` → `%LOCALAPPDATA%\Programs\Git\cmd\git.exe`。全部不存在时先安装 `winget install --id Git.Git -e`，安装后仍用绝对路径调用。
 2. 检查仓库状态：`git -C "D:\网页设计" rev-parse --is-inside-work-tree`、`git remote -v`、`git branch --show-current`、`git status --short`。
-3. 仓库不存在时执行 `git init -b main`，并 `git remote add origin git@github.com:xiaoanyyds78/Lbwyyds.git`。
-4. 远程地址不是 SSH 形式时改为 SSH。本机 22 端口被拒（`connect to host github.com port 22: Connection refused`），统一用 443 通道：`GIT_SSH_COMMAND="ssh -p 443 -o BatchMode=yes -o StrictHostKeyChecking=accept-new"`，主机是 `git@github.com` 但实际落到 `ssh.github.com:443`。SSH 认证失败（`Permission denied (publickey)`）说明 `~/.ssh` 无可用私钥，此时不要反复重试，直接向用户索取私钥或 HTTPS 令牌。
+3. 仓库不存在时执行 `git init -b main`，并设置远程为 `ssh://git@ssh.github.com:443/xiaoanyyds78/Lbwyyds.git`。
+4. 本机 22 端口被拒（`connect to host github.com port 22: Connection refused`），必须走 443 通道，且远程地址要带上端口（`ssh://git@ssh.github.com:443/...`）；同时指定私钥：
+
+```powershell
+$env:GIT_SSH_COMMAND="ssh -i `"$env:USERPROFILE\.ssh\id_ed25519`" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+```
+
+认证成功时 ssh 会返回 `Hi xiaoanyyds78! You've successfully authenticated`（退出码 1 属正常）。若返回 `Permission denied (publickey)`，说明私钥没挂到 `xiaoanyyds78` 账号，直接向用户索取或改用 PAT，不要反复重试。
 5. 确认 `.gitignore` 至少忽略 `node_modules/`、`*.log`、`.DS_Store`、`.env`。不要创建 `.gitignore` 之外的新文件。
 6. 暂存：`git add -A`。若包含疑似密钥（`.env`、`*.pem`、`id_rsa`、含 token 的配置）先停下并告知用户，不要提交。
 7. 提交：`git commit -m "<中文摘要>"`。摘要说明本次改动的目的，例如 `更新课堂练习页面与图标资源`；无改动时跳过提交并说明。

@@ -22,7 +22,7 @@ if (-not $git) {
 }
 if (-not $git) { throw "未找到 git，请先安装：winget install --id Git.Git -e" }
 
-$sshRemote = "git@github.com:xiaoanyyds78/Lbwyyds.git"
+$sshRemote = "ssh://git@ssh.github.com:443/xiaoanyyds78/Lbwyyds.git"
 $httpsRemote = "https://github.com/xiaoanyyds78/Lbwyyds.git"
 $branch = "main"
 
@@ -67,7 +67,7 @@ if (-not $staged) {
 }
 
 # 8. 推送（22 端口不通，走 443；失败再回退 HTTPS，且不强制推送）
-$env:GIT_SSH_COMMAND = "ssh -p 443 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
+$env:GIT_SSH_COMMAND = "ssh -i `"$env:USERPROFILE\.ssh\id_ed25519`" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
 $env:GIT_TERMINAL_PROMPT = "0"
 
 $currentBranch = (& $git -C $RepoPath branch --show-current)
