@@ -66,7 +66,10 @@ if (-not $staged) {
     Invoke-Git @("commit", "-m", $Message)
 }
 
-# 8. 推送（SSH 失败时回退 HTTPS，且不强制推送）
+# 8. 推送（22 端口不通，走 443；失败再回退 HTTPS，且不强制推送）
+$env:GIT_SSH_COMMAND = "ssh -p 443 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
+$env:GIT_TERMINAL_PROMPT = "0"
+
 $currentBranch = (& $git -C $RepoPath branch --show-current)
 if (-not $currentBranch) { Invoke-Git @("checkout", "-b", $branch) }
 
