@@ -1,4 +1,4 @@
-<#
+﻿<#
   将 D:\网页设计 的全部改动提交并推送到 GitHub 仓库 Lbwyyds。
   用法：
     powershell -ExecutionPolicy Bypass -File commit-push.ps1 -Message "更新课堂练习页面与图标资源"
@@ -16,7 +16,9 @@ if (-not $git) {
     foreach ($c in @(
             "C:\Program Files\Git\cmd\git.exe",
             "C:\Program Files (x86)\Git\cmd\git.exe",
-            "$env:LOCALAPPDATA\Programs\Git\cmd\git.exe")) {
+            "$env:LOCALAPPDATA\Programs\Git\cmd\git.exe",
+            "D:\高级网页设计\Gitee\Git\cmd\git.exe",
+            "D:\高级网页设计\Gitee\Git\bin\git.exe")) {
         if (Test-Path $c) { $git = $c; break }
     }
 }
