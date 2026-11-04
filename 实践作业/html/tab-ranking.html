@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<!--
+  作者：柳博文
+  建立时间：2026-11-04
+  使用大模型：DeepSeek-V4.1-Flash
+  功能名称：新闻热榜选项卡页面（实时点击 / 24小时排行，前三名红字加方框并显示浏览量）
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新闻热榜 · 实时点击 / 24小时排行</title>
+<style>
+  /* ===== 设计变量 ===== */
+  :root{
+    --lbw_ink:#1a1d21;
+    --lbw_ink-soft:#6b7280;
+    --lbw_line:#e8e8ea;
+    --lbw_bg:#f4f4f6;
+    --lbw_card:#ffffff;
+    --lbw_red:#d92b2b;
+    --lbw_red-soft:#fdeaea;
+    --lbw_radius:3px;
+    --lbw_shadow:0 6px 20px rgba(26,29,33,.06);
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
+    background:var(--lbw_bg);
+    color:var(--lbw_ink);
+    line-height:1.6;
+    padding:44px 18px 60px;
+  }
+
+  .lbw_wrap{max-width:760px;margin:0 auto}
+
+  /* ===== 页头 ===== */
+  .lbw_head{margin-bottom:26px}
+  .lbw_head h1{
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:.03em;
+  }
+  .lbw_head h1 em{
+    font-style:normal;
+    color:var(--lbw_red);
+  }
+  .lbw_head p{color:var(--lbw_ink-soft);font-size:13px;margin-top:4px}
+
+  /* ===== 选项卡（结构由 js/tabs.js 统一接管）===== */
+  .lbw_tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:16px;
+  }
+  .lbw_tab{
+    border:1px solid var(--lbw_line);
+    background:var(--lbw_card);
+    color:var(--lbw_ink-soft);
+    font-family:inherit;
+    font-size:14px;
+    padding:9px 20px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:color .18s ease,border-color .18s ease,background .18s ease;
+  }
+  .lbw_tab:hover{color:var(--lbw_ink);border-color:#c9c9cf}
+  .lbw_tab[aria-selected="true"]{
+    background:var(--lbw_red);
+    border-color:var(--lbw_red);
+    color:#fff;
+    font-weight:700;
+  }
+  .lbw_tab:focus-visible{outline:2px solid var(--lbw_red);outline-offset:2px}
+
+  /* ===== 面板与榜单 ===== */
+  .lbw_panel{display:none}
+  .lbw_panel.lbw_is-active{display:block;animation:lbw_fade .26s ease}
+  @keyframes lbw_fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .lbw_list{
+    list-style:none;
+    background:var(--lbw_card);
+    border-radius:var(--lbw_radius);
+    box-shadow:var(--lbw_shadow);
+    padding:6px 0;
+  }
+
+  .lbw_item{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 20px;
+    border-bottom:1px solid var(--lbw_line);
+    transition:background .18s ease;
+  }
+  .lbw_item:last-child{border-bottom:0}
+  .lbw_item:hover{background:#fafafa}
+
+  /* 名次：前三名红字 + 方框 */
+  .lbw_rank-no{
+    flex:none;
+    width:26px;
+    height:26px;
+    line-height:24px;
+    text-align:center;
+    font-size:13px;
+    font-weight:700;
+    color:var(--lbw_ink-soft);
+    border:1px solid transparent;
+    border-radius:3px;
+  }
+  .lbw_rank-top{
+    color:var(--lbw_red);
+    border:1px solid var(--lbw_red);
+    background:var(--lbw_red-soft);
+  }
+
+  .lbw_item-body{flex:1;min-width:0}
+  .lbw_item-title{
+    font-size:15px;
+    font-weight:600;
+    color:var(--lbw_ink);
+    display:block;
+    text-decoration:none;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .lbw_item:hover .lbw_item-title{color:var(--lbw_red)}
+
+  /* 浏览量 */
+  .lbw_views{
+    flex:none;
+    display:flex;
+    align-items:center;
+    gap:5px;
+    font-size:12.5px;
+    color:var(--lbw_ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .lbw_views-dot{
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:var(--lbw_red);
+    opacity:.65;
+  }
+
+  /* ===== 页脚 ===== */
+  .lbw_foot{
+    margin-top:22px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+    color:var(--lbw_ink-soft);
+    font-size:12px;
+  }
+
+  @media (max-width:560px){
+    body{padding:28px 12px 44px}
+    .lbw_head h1{font-size:21px}
+    .lbw_item{padding:12px 14px;gap:10px}
+    .lbw_item-title{font-size:14px}
+  }
+</style>
+</head>
+<body>
+<div class="lbw_wrap">
+
+  <header class="lbw_head">
+    <h1>新闻<em>热榜</em></h1>
+    <p>示例数据 · 按点击与浏览量排序，前三名以红字方框标注</p>
+  </header>
+
+  <!-- 选项卡：默认选中「24小时排行」 -->
+  <nav class="lbw_tabs" role="tablist" aria-label="热榜分类">
+    <button class="lbw_tab" role="tab" id="lbw_tabRealtime" aria-controls="lbw_panelRealtime" aria-selected="false" tabindex="-1">实时点击</button>
+    <button class="lbw_tab" role="tab" id="lbw_tabDaily" aria-controls="lbw_panelDaily" aria-selected="true" tabindex="0">24小时排行</button>
+  </nav>
+
+  <!-- 面板一：实时点击 -->
+  <section class="lbw_panel" role="tabpanel" id="lbw_panelRealtime" aria-labelledby="lbw_tabRealtime" tabindex="0">
+    <ol class="lbw_list">
+      <li class="lbw_item">
+        <span class="lbw_rank-no lbw_rank-top">1</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#1">台风“海鸥”逼近沿海，多地启动防台风四级响应</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 128.6 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no lbw_rank-top">2</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#2">国产大模型开源社区发布新一代推理框架</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 96.3 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no lbw_rank-top">3</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#3">央行开展逆回购操作，市场流动性保持充裕</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 74.1 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">4</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#4">高校新增人工智能相关专业备案名单公布</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 61.8 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">5</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#5">多城地铁试行“无感通行”，高峰通行效率提升</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 48.5 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">6</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#6">深海探测器完成万米级下潜，样本采集顺利</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 39.2 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">7</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#7">冬季用电负荷创新高，电网启动跨区调度</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 32.7 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">8</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#8">国产首款大尺寸折叠屏设备正式开售</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 27.4 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">9</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#9">秋季校招启动，制造业岗位需求同比增长</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 21.6 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">10</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#10">乡村文旅线路推出夜间游览，带动周边消费</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 18.9 万</span>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 面板二：24小时排行（默认显示） -->
+  <section class="lbw_panel lbw_is-active" role="tabpanel" id="lbw_panelDaily" aria-labelledby="lbw_tabDaily" tabindex="0">
+    <ol class="lbw_list">
+      <li class="lbw_item">
+        <span class="lbw_rank-no lbw_rank-top">1</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d1">全国秋粮收购过半，智能粮库投入使用</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 342.5 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no lbw_rank-top">2</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d2">多国央行维持利率，全球市场震荡整理</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 286.4 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no lbw_rank-top">3</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d3">高速充电网络扩容，长假出行补能更便利</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 231.7 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">4</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d4">县域远程会诊接入乡镇，基层就医更便捷</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 196.3 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">5</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d5">深海观测设备长周期海试数据回传稳定</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 174.8 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">6</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d6">城市更新项目收尾，老旧小区加装电梯提速</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 152.9 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">7</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d7">国际航运运价指数回落，港口周转加快</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 133.5 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">8</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d8">欧洲多城启动气候适应计划，改造排水系统</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 118.2 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">9</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d9">秋季文旅线路串联非遗工坊，预约制导览上线</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 97.6 万</span>
+      </li>
+      <li class="lbw_item">
+        <span class="lbw_rank-no">10</span>
+        <div class="lbw_item-body">
+          <a class="lbw_item-title" href="#d10">多所学校开设人工智能通识课，教材同步更新</a>
+        </div>
+        <span class="lbw_views"><i class="lbw_views-dot" aria-hidden="true"></i>浏览量 84.3 万</span>
+      </li>
+    </ol>
+  </section>
+
+  <footer class="lbw_foot">
+    <span>高级网页设计 · 热榜选项卡实践</span>
+    <span>柳博文 · 2026-11-04</span>
+  </footer>
+
+</div>
+
+<!-- 复用已有的选项卡组件，无需页面内写初始化脚本 -->
+<script src="js/tabs.js"></script>
+</body>
+</html>
