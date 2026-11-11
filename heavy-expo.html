@@ -2,15 +2,18 @@
 <!--
   作者：柳博文
   建立时间：2026-11-06
+  最后更新：2026-11-11
   使用大模型：DeepSeek-V4.1-Flash
-  功能名称：大国重器光影展 · 3D 立方体无缝轮播
-  说明：立方体旋转切换 4 张展品、3.2 秒自动翻页、手动操作不中断、圆点分页器可点击
+  功能名称：大国重器光影展 · Swiper 多效果轮播
+  说明：5 件国之重器，7 个效果按钮（cube / 滑动 / 淡入 / 翻转 / 封面流 / 卡片 / creative 电影墙），
+        默认 cube，3.2 秒自动播放，手动操作后不停止，圆点分页器可点击。
 -->
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>大国重器光影展 · 立方体轮播</title>
+<title>大国重器光影展 · 多效果轮播</title>
+<link rel="stylesheet" href="cdn/swiper/swiper-bundle.min.css">
 <style>
   :root {
     --lbw_bg: #06070a;
@@ -81,18 +84,15 @@
     letter-spacing: .06em;
   }
 
-  /* ---------- 轮播 ---------- */
-  .lbw_carousel {
+  /* ---------- 轮播舞台 ---------- */
+  .lbw_stage {
     position: relative;
     width: min(1080px, 92vw);
-    --lbw_half: 0px;
   }
 
-  .lbw_viewport {
-    position: relative;
+  .lbw_swiper {
+    width: 100%;
     aspect-ratio: 16 / 9;
-    perspective: 1500px;
-    perspective-origin: 50% 48%;
     border: 1px solid var(--lbw_line);
     box-shadow:
       0 40px 90px rgba(0, 0, 0, .65),
@@ -100,17 +100,7 @@
     background: var(--lbw_bg-soft);
   }
 
-  .lbw_cube {
-    position: absolute;
-    inset: 0;
-    transform-style: preserve-3d;
-    transition: transform .95s cubic-bezier(.62, .02, .2, 1);
-    transform: translateZ(calc(var(--lbw_half) * -1)) rotateY(0deg);
-  }
-
-  .lbw_cube-face {
-    position: absolute;
-    inset: 0;
+  .lbw_swiper .swiper-slide {
     overflow: hidden;
     background: var(--lbw_bg-soft);
   }
@@ -120,13 +110,32 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transform: scale(1.04);
     filter: saturate(1.05) contrast(1.08) brightness(.92);
+  }
+
+  /* 缩放容器：铺满整张 slide，图片保持 cover 不被缩放模块改写为 contain */
+  .lbw_swiper .swiper-zoom-container {
+    width: 100%;
+    height: 100%;
+    cursor: zoom-in;
+  }
+
+  .swiper-slide-zoomed .swiper-zoom-container {
+    cursor: move;
+  }
+
+  .lbw_swiper .swiper-zoom-container > img {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
   }
 
   .lbw_face-shade {
     position: absolute;
     inset: 0;
+    pointer-events: none;
     background:
       linear-gradient(180deg, rgba(6, 7, 10, .55) 0%, transparent 34%, transparent 46%, rgba(6, 7, 10, .9) 100%),
       linear-gradient(90deg, rgba(6, 7, 10, .55), transparent 55%);
@@ -143,8 +152,8 @@
     position: absolute;
     left: clamp(24px, 5%, 62px);
     bottom: clamp(22px, 5%, 56px);
-    right: auto;
     max-width: 76%;
+    pointer-events: none;
   }
 
   .lbw_no {
@@ -189,8 +198,8 @@
     border: 1px solid var(--lbw_line);
     border-radius: 50%;
     cursor: pointer;
-    z-index: 5;
-    transition: background .25s, color .25s, border-color .25s, transform .25s;
+    z-index: 20;
+    transition: background .25s, color .25s, border-color .25s;
     backdrop-filter: blur(4px);
   }
 
@@ -206,31 +215,70 @@
   .lbw_arrow-next { right: -23px; }
 
   /* 圆点分页器 */
-  .lbw_dots {
+  .lbw_pager {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     margin-top: 26px;
+    position: static;
   }
 
-  .lbw_dot {
+  .lbw_pager .swiper-pagination-bullet {
     width: 9px;
     height: 9px;
-    padding: 0;
+    margin: 0 !important;
     border: 1px solid rgba(217, 180, 106, .5);
     border-radius: 999px;
     background: transparent;
-    cursor: pointer;
+    opacity: 1;
     transition: width .3s, background .3s, border-color .3s;
   }
 
-  .lbw_dot:hover { border-color: var(--lbw_gold); background: rgba(217, 180, 106, .35); }
+  .lbw_pager .swiper-pagination-bullet:hover {
+    border-color: var(--lbw_gold);
+    background: rgba(217, 180, 106, .35);
+  }
 
-  .lbw_dot.lbw_is-active {
+  .lbw_pager .swiper-pagination-bullet-active {
     width: 30px;
     background: var(--lbw_gold);
     border-color: var(--lbw_gold);
+  }
+
+  /* 效果切换按钮组 */
+  .lbw_effects {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: min(1080px, 92vw);
+    margin-top: 24px;
+  }
+
+  .lbw_effect {
+    padding: 9px 18px;
+    font-size: 13px;
+    letter-spacing: .08em;
+    color: var(--lbw_ink-dim);
+    background: rgba(255, 255, 255, .02);
+    border: 1px solid var(--lbw_line);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color .22s, background .22s, border-color .22s;
+    font-family: inherit;
+  }
+
+  .lbw_effect:hover {
+    color: var(--lbw_gold);
+    border-color: rgba(217, 180, 106, .55);
+  }
+
+  .lbw_effect.lbw_is-active {
+    color: #100d07;
+    background: var(--lbw_gold);
+    border-color: var(--lbw_gold);
+    font-weight: 700;
   }
 
   .lbw_hint {
@@ -247,6 +295,7 @@
     .lbw_arrow-prev { left: 6px; }
     .lbw_arrow-next { right: 6px; }
     .lbw_face-frame { inset: 10px; }
+    .lbw_effect { padding: 7px 13px; font-size: 12px; }
   }
 </style>
 </head>
@@ -256,65 +305,98 @@
   <p class="lbw_eyebrow">Made in China · Heavy Equipment</p>
   <h1 class="lbw_title">大国重器光影展</h1>
   <div class="lbw_rule" aria-hidden="true"></div>
-  <p class="lbw_desc">四件国之重器，四面向度 · 立方体旋转呈现</p>
+  <p class="lbw_desc">五件国之重器 · 七种切换效果 · 默认立方体呈现</p>
 </header>
 
-<main class="lbw_carousel" data-lbw-carousel data-lbw-interval="3200" aria-roledescription="carousel" aria-label="大国重器光影展">
+<main class="lbw_stage" aria-label="大国重器光影展">
 
-  <div class="lbw_viewport">
-    <div class="lbw_cube">
+  <div class="swiper lbw_swiper">
+    <div class="swiper-wrapper">
 
-      <!-- 面 1：歼-20 -->
-      <figure class="lbw_cube-face">
-        <img class="lbw_face-img" alt="歼-20 隐身战斗机在黄昏跑道起飞"
-             src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=Chinese%20J-20%20stealth%20fighter%20jet%20taking%20off%20on%20runway%20at%20dusk%2C%20golden%20rim%20light%2C%20cinematic%20military%20photography%2C%20dark%20sky&image_size=landscape_16_9">
-        <div class="lbw_face-shade" aria-hidden="true"></div>
-        <div class="lbw_face-frame" aria-hidden="true"></div>
-        <figcaption class="lbw_caption">
-          <div class="lbw_no">01 / AIR</div>
-          <h2 class="lbw_caption-title">歼-20 威龙</h2>
-          <p class="lbw_caption-sub">中国自主研制的第五代隐身战斗机，2011 年首飞，标志着航空工业跨入隐身时代。</p>
-        </figcaption>
-      </figure>
+      <!-- 第 1 张：歼-20 -->
+      <div class="swiper-slide">
+        <figure class="lbw_face">
+          <div class="swiper-zoom-container">
+            <img class="lbw_face-img" alt="歼-20 隐身战斗机在黄昏跑道起飞"
+                 src="images/lbw_expo_j20.jpg">
+          </div>
+          <div class="lbw_face-shade" aria-hidden="true"></div>
+          <div class="lbw_face-frame" aria-hidden="true"></div>
+          <figcaption class="lbw_caption">
+            <div class="lbw_no">01 / AIR</div>
+            <h2 class="lbw_caption-title">歼-20 威龙</h2>
+            <p class="lbw_caption-sub">中国自主研制的第五代隐身战斗机，2011 年首飞，标志着航空工业跨入隐身时代。</p>
+          </figcaption>
+        </figure>
+      </div>
 
-      <!-- 面 2：复兴号 -->
-      <figure class="lbw_cube-face">
-        <img class="lbw_face-img" alt="复兴号高速动车组夜间疾驰"
-             src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=CR400%20Fuxing%20high-speed%20train%20speeding%20through%20night%20city%2C%20long%20exposure%20light%20trails%2C%20cinematic%20photography&image_size=landscape_16_9">
-        <div class="lbw_face-shade" aria-hidden="true"></div>
-        <div class="lbw_face-frame" aria-hidden="true"></div>
-        <figcaption class="lbw_caption">
-          <div class="lbw_no">02 / RAIL</div>
-          <h2 class="lbw_caption-title">复兴号动车组</h2>
-          <p class="lbw_caption-sub">CR400 系列中国标准动车组，运营时速 350 公里，实现牵引、制动、网络完全自主。</p>
-        </figcaption>
-      </figure>
+      <!-- 第 2 张：复兴号 -->
+      <div class="swiper-slide">
+        <figure class="lbw_face">
+          <div class="swiper-zoom-container">
+            <img class="lbw_face-img" alt="复兴号高速动车组夜间疾驰"
+                 src="images/lbw_expo_train.jpg">
+          </div>
+          <div class="lbw_face-shade" aria-hidden="true"></div>
+          <div class="lbw_face-frame" aria-hidden="true"></div>
+          <figcaption class="lbw_caption">
+            <div class="lbw_no">02 / RAIL</div>
+            <h2 class="lbw_caption-title">复兴号动车组</h2>
+            <p class="lbw_caption-sub">CR400 系列中国标准动车组，运营时速 350 公里，实现牵引、制动、网络完全自主。</p>
+          </figcaption>
+        </figure>
+      </div>
 
-      <!-- 面 3：中国天眼 -->
-      <figure class="lbw_cube-face">
-        <img class="lbw_face-img" alt="中国天眼 FAST 射电望远镜夜空全景"
-             src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=FAST%20500-meter%20radio%20telescope%20dish%20in%20mountain%20valley%20under%20starry%20night%2C%20aerial%20view%2C%20cinematic%20photography&image_size=landscape_16_9">
-        <div class="lbw_face-shade" aria-hidden="true"></div>
-        <div class="lbw_face-frame" aria-hidden="true"></div>
-        <figcaption class="lbw_caption">
-          <div class="lbw_no">03 / SKY</div>
-          <h2 class="lbw_caption-title">中国天眼 FAST</h2>
-          <p class="lbw_caption-sub">500 米口径球面射电望远镜，落成于贵州喀斯特洼地，是目前世界最大单口径射电望远镜。</p>
-        </figcaption>
-      </figure>
+      <!-- 第 3 张：中国天眼 -->
+      <div class="swiper-slide">
+        <figure class="lbw_face">
+          <div class="swiper-zoom-container">
+            <img class="lbw_face-img" alt="中国天眼 FAST 射电望远镜夜空全景"
+                 src="images/lbw_expo_fast_1.jpg">
+          </div>
+          <div class="lbw_face-shade" aria-hidden="true"></div>
+          <div class="lbw_face-frame" aria-hidden="true"></div>
+          <figcaption class="lbw_caption">
+            <div class="lbw_no">03 / SKY</div>
+            <h2 class="lbw_caption-title">中国天眼 FAST</h2>
+            <p class="lbw_caption-sub">500 米口径球面射电望远镜，落成于贵州喀斯特洼地，是目前世界最大单口径射电望远镜。</p>
+          </figcaption>
+        </figure>
+      </div>
 
-      <!-- 面 4：蛟龙号 -->
-      <figure class="lbw_cube-face">
-        <img class="lbw_face-img" alt="蛟龙号载人深潜器在深海探照"
-             src="https://trae-api-cn.mchost.guru/api/ide/v1/tool_text_to_image?prompt=Deep%20sea%20manned%20submersible%20with%20bright%20spotlights%20exploring%20dark%20ocean%2C%20blue%20glow%2C%20cinematic%20underwater%20photography&image_size=landscape_16_9">
-        <div class="lbw_face-shade" aria-hidden="true"></div>
-        <div class="lbw_face-frame" aria-hidden="true"></div>
-        <figcaption class="lbw_caption">
-          <div class="lbw_no">04 / DEEP</div>
-          <h2 class="lbw_caption-title">蛟龙号深潜器</h2>
-          <p class="lbw_caption-sub">中国首台自主设计、集成研制的载人深潜器，最大下潜深度 7062 米。</p>
-        </figcaption>
-      </figure>
+      <!-- 第 4 张：蛟龙号 -->
+      <div class="swiper-slide">
+        <figure class="lbw_face">
+          <div class="swiper-zoom-container">
+            <img class="lbw_face-img" alt="蛟龙号载人深潜器在深海探照"
+                 src="images/lbw_expo_jiaolong.jpg">
+          </div>
+          <div class="lbw_face-shade" aria-hidden="true"></div>
+          <div class="lbw_face-frame" aria-hidden="true"></div>
+          <figcaption class="lbw_caption">
+            <div class="lbw_no">04 / DEEP</div>
+            <h2 class="lbw_caption-title">蛟龙号深潜器</h2>
+            <p class="lbw_caption-sub">中国首台自主设计、集成研制的载人深潜器，最大下潜深度 7062 米。</p>
+          </figcaption>
+        </figure>
+      </div>
+
+      <!-- 第 5 张：爱达·魔都号 -->
+      <div class="swiper-slide">
+        <figure class="lbw_face">
+          <div class="swiper-zoom-container">
+            <img class="lbw_face-img" alt="爱达·魔都号国产大型邮轮海上航行"
+                 src="images/lbw_expo_adora.jpg">
+          </div>
+          <div class="lbw_face-shade" aria-hidden="true"></div>
+          <div class="lbw_face-frame" aria-hidden="true"></div>
+          <figcaption class="lbw_caption">
+            <div class="lbw_no">05 / SEA</div>
+            <h2 class="lbw_caption-title">爱达·魔都号</h2>
+            <p class="lbw_caption-sub">我国首艘国产大型邮轮，2024 年 1 月 1 日自上海首航，全长 323.6 米，填补了大型邮轮建造的空白。</p>
+          </figcaption>
+        </figure>
+      </div>
 
     </div>
   </div>
@@ -322,12 +404,26 @@
   <button type="button" class="lbw_arrow lbw_arrow-prev" aria-label="上一张">‹</button>
   <button type="button" class="lbw_arrow lbw_arrow-next" aria-label="下一张">›</button>
 
-  <div class="lbw_dots" role="tablist" aria-label="轮播分页"></div>
-  <p class="lbw_hint">3.2S AUTO PLAY · 手动操作后自动继续</p>
-
 </main>
 
-<!-- 3D 立方体轮播组件 -->
-<script src="js/lbw-carousel.js"></script>
+<!-- 圆点分页器：由 Swiper 自动填充 -->
+<div class="lbw_pager" aria-label="轮播分页"></div>
+
+<!-- 效果切换：第 7 个为 creative 电影墙 -->
+<div class="lbw_effects" role="group" aria-label="切换轮播效果">
+  <button type="button" class="lbw_effect lbw_is-active" data-lbw-effect="cube" aria-pressed="true">立方体</button>
+  <button type="button" class="lbw_effect" data-lbw-effect="slide" aria-pressed="false">滑动</button>
+  <button type="button" class="lbw_effect" data-lbw-effect="fade" aria-pressed="false">淡入</button>
+  <button type="button" class="lbw_effect" data-lbw-effect="flip" aria-pressed="false">翻转</button>
+  <button type="button" class="lbw_effect" data-lbw-effect="coverflow" aria-pressed="false">封面流</button>
+  <button type="button" class="lbw_effect" data-lbw-effect="cards" aria-pressed="false">卡片</button>
+  <button type="button" class="lbw_effect" data-lbw-effect="creative" aria-pressed="false">creative 电影墙</button>
+</div>
+
+<p class="lbw_hint">3.2S AUTO PLAY · 双击图片缩放 · 手动操作后自动继续</p>
+
+<!-- Swiper 本地文件 + 多效果切换组件 -->
+<script src="cdn/swiper/swiper-bundle.min.js"></script>
+<script src="js/lbw-swiper-effects.js"></script>
 </body>
 </html>
