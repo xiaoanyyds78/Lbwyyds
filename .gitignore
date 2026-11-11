@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+.env
+Thumbs.db
+# 独立的 Gitee 仓库，由它自己维护版本，外层仓库不纳入
+webprojectxiaoan/
+# IDE 生成的分享包与截图，属构建产物
+.trae-html-share-packages/
+.screenshots/
