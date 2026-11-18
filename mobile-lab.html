@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<!--
+  作者：柳博文-24002120602
+  建立时间：2026-11-18
+  使用大模型：DeepSeek-V4.1-Flash
+  功能名称：移动端交互实验室（滑动卡片 + 图片缩放 + 摇一摇抽菜谱，三合一选项卡页）
+-->
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="移动端交互实验室：滑动卡片、双指缩放、摇一摇抽菜谱">
+    <title>移动端交互实验室 · 柳博文</title>
+    <style>
+        :root {
+            --lbw_bg: #0e1116;
+            --lbw_card: #171c24;
+            --lbw_ink: #f7f8fa;
+            --lbw_muted: rgba(247, 248, 250, .58);
+            --lbw_line: rgba(247, 248, 250, .12);
+            --lbw_gold: #f4c95d;
+            --lbw_coral: #ef765f;
+            --lbw_teal: #37c2b4;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            color: var(--lbw_ink);
+            background: radial-gradient(circle at 50% -10%, #1d252f, var(--lbw_bg) 58%);
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .lbw_app {
+            width: min(100%, 480px);
+            margin: 0 auto;
+            padding: 30px 20px 60px;
+        }
+
+        /* ===== 头部 ===== */
+        .lbw_eyebrow {
+            margin: 0 0 8px;
+            color: var(--lbw_gold);
+            font-size: 11px;
+            letter-spacing: .22em;
+        }
+
+        .lbw_title {
+            margin: 0 0 4px;
+            font-size: 25px;
+            letter-spacing: .04em;
+        }
+
+        .lbw_subtitle {
+            margin: 0;
+            color: var(--lbw_muted);
+            font-size: 13px;
+        }
+
+        /* ===== 选项卡 ===== */
+        .lbw_tabs {
+            position: sticky;
+            top: 0;
+            z-index: 9;
+            display: flex;
+            gap: 6px;
+            margin: 20px 0 22px;
+            padding: 6px;
+            border: 1px solid var(--lbw_line);
+            border-radius: 999px;
+            background: rgba(14, 17, 22, .92);
+            backdrop-filter: blur(8px);
+        }
+
+        .lbw_tab {
+            flex: 1;
+            padding: 10px 4px;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: var(--lbw_muted);
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background .2s ease, color .2s ease;
+        }
+
+        .lbw_tab.lbw_is-active {
+            background: var(--lbw_gold);
+            color: #17130a;
+            font-weight: 600;
+        }
+
+        /* 面板显隐 */
+        .lbw_panel {
+            display: none;
+        }
+
+        .lbw_panel.lbw_is-active {
+            display: block;
+        }
+
+        /* ===== 01 滑动卡片 ===== */
+        .lbw_swipe-viewport {
+            overflow: hidden;
+            border-radius: 20px;
+            touch-action: pan-y;
+            user-select: none;
+            -webkit-user-select: none;
+            border: 1px solid var(--lbw_line);
+            box-shadow: 0 22px 44px rgba(0, 0, 0, .45);
+        }
+
+        .lbw_swipe-track {
+            display: flex;
+            transition: transform .3s ease;
+            will-change: transform;
+        }
+
+        .lbw_swipe-card {
+            flex: 0 0 100%;
+            min-height: 320px;
+            padding: 30px 26px 26px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 8px;
+            position: relative;
+        }
+
+        .lbw_swipe-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, .45));
+            pointer-events: none;
+        }
+
+        .lbw_swipe-card-1 {
+            background: linear-gradient(145deg, #f6b26b, #d9603b 55%, #7a2f1c);
+        }
+
+        .lbw_swipe-card-2 {
+            background: linear-gradient(145deg, #9fd8c6, #3f9b86 55%, #16544a);
+        }
+
+        .lbw_swipe-card-3 {
+            background: linear-gradient(145deg, #f0a1a1, #c14b4b 55%, #5c1c1c);
+        }
+
+        .lbw_swipe-card-4 {
+            background: linear-gradient(145deg, #d8c39a, #a67b3d 55%, #4f3517);
+        }
+
+        .lbw_swipe-emoji {
+            position: relative;
+            z-index: 1;
+            font-size: 40px;
+            line-height: 1;
+        }
+
+        .lbw_swipe-name {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            font-size: 27px;
+            letter-spacing: .05em;
+        }
+
+        .lbw_swipe-desc {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: rgba(255, 255, 255, .82);
+            font-size: 13.5px;
+            line-height: 1.85;
+        }
+
+        .lbw_swipe-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            color: var(--lbw_muted);
+            font-size: 13px;
+        }
+
+        /* 越界提示：浮在卡片中央 */
+        .lbw_swipe-tip {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(.9);
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, .72);
+            color: #fff;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease, transform .2s ease;
+        }
+
+        .lbw_swipe-tip.lbw_show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .lbw_swipe-hint {
+            margin: 16px 0 0;
+            color: var(--lbw_muted);
+            font-size: 12.5px;
+        }
+
+        /* ===== 02 图片缩放 ===== */
+        .lbw_zoom-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            color: var(--lbw_muted);
+            font-size: 13px;
+        }
+
+        .lbw_zoom-scale {
+            color: var(--lbw_gold);
+            font-weight: 600;
+        }
+
+        .lbw_zoom-viewer {
+            position: relative;
+            height: 58vh;
+            min-height: 300px;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background: #05070a;
+            border: 1px solid var(--lbw_line);
+            border-radius: 18px;
+        }
+
+        /* 绝对定位 + 四边 0 + margin:auto：按容器等比缩到框内，
+           写成 grid 时 max-height 的百分比会失效，图片会被裁掉 */
+        .lbw_zoom-image {
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            transform-origin: center center;
+            transition: transform .25s ease;
+            will-change: transform;
+            pointer-events: none;
+        }
+
+        .lbw_zoom-tips {
+            margin: 14px 0 0;
+            color: var(--lbw_muted);
+            font-size: 12.5px;
+            line-height: 1.9;
+        }
+
+        .lbw_zoom-toast {
+            position: fixed;
+            left: 50%;
+            top: 24px;
+            transform: translateX(-50%) translateY(-12px);
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, .82);
+            color: #fff;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s ease, transform .25s ease;
+            z-index: 20;
+        }
+
+        .lbw_zoom-toast.lbw_show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ===== 03 摇一摇 ===== */
+        .lbw_shake-prompt {
+            margin: 0 0 16px;
+            color: var(--lbw_muted);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .lbw_shake-result {
+            padding: 32px 24px 28px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px;
+            text-align: center;
+            border: 1px solid var(--lbw_line);
+            border-radius: 20px;
+            background: var(--lbw_card);
+            box-shadow: 0 22px 44px rgba(0, 0, 0, .45);
+        }
+
+        .lbw_shake-emoji {
+            font-size: 42px;
+            line-height: 1;
+        }
+
+        .lbw_shake-name {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: .06em;
+        }
+
+        .lbw_shake-desc {
+            margin: 0;
+            color: var(--lbw_muted);
+            font-size: 13.5px;
+            line-height: 1.9;
+        }
+
+        /* 弹出动画：缩放 + 淡入 */
+        .lbw_pop {
+            animation: lbw_popIn .45s cubic-bezier(.2, 1.4, .4, 1) both;
+        }
+
+        @keyframes lbw_popIn {
+            0% {
+                transform: scale(.86);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .lbw_shake-status {
+            margin: 14px 0 0;
+            min-height: 20px;
+            color: var(--lbw_muted);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .lbw_shake-fallback {
+            display: none;
+            margin-top: 18px;
+            padding: 20px 18px;
+            text-align: center;
+            border: 1px dashed var(--lbw_line);
+            border-radius: 16px;
+            background: rgba(239, 118, 95, .08);
+        }
+
+        .lbw_shake-fallback.lbw_show {
+            display: block;
+        }
+
+        .lbw_shake-fallback-text {
+            margin: 0 0 14px;
+            color: var(--lbw_coral);
+            font-size: 14px;
+        }
+
+        .lbw_btn {
+            appearance: none;
+            border: 0;
+            padding: 13px 26px;
+            border-radius: 999px;
+            background: var(--lbw_gold);
+            color: #1a1408;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .15s ease, opacity .15s ease;
+        }
+
+        .lbw_btn:active {
+            transform: scale(.96);
+            opacity: .88;
+        }
+
+        .lbw_note {
+            margin-top: 26px;
+            padding: 18px 20px;
+            text-align: left;
+            border-left: 3px solid var(--lbw_gold);
+            border-radius: 0 12px 12px 0;
+            background: rgba(244, 201, 93, .07);
+        }
+
+        .lbw_note-title {
+            margin: 0 0 8px;
+            color: var(--lbw_gold);
+            font-size: 14px;
+        }
+
+        .lbw_note p {
+            margin: 0;
+            color: var(--lbw_muted);
+            font-size: 13px;
+            line-height: 1.95;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 18px;
+            border-top: 1px solid var(--lbw_line);
+            color: var(--lbw_muted);
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="lbw_app">
+        <p class="lbw_eyebrow">MOBILE PRACTICE · TOUCH / ZOOM / SENSOR</p>
+        <h1 class="lbw_title">移动端交互实验室</h1>
+        <p class="lbw_subtitle">滑动卡片、双指缩放、摇一摇，三个练习合并在一个页面里。</p>
+
+        <nav class="lbw_tabs" id="lbw_tabs" aria-label="功能切换">
+            <button class="lbw_tab lbw_is-active" id="lbw_tabSwipe" data-panel="lbw_panelSwipe"
+                type="button">01 滑动卡片</button>
+            <button class="lbw_tab" id="lbw_tabZoom" data-panel="lbw_panelZoom" type="button">02 图片缩放</button>
+            <button class="lbw_tab" id="lbw_tabShake" data-panel="lbw_panelShake" type="button">03 摇一摇</button>
+        </nav>
+
+        <!-- ========== 面板 1：滑动卡片 ========== -->
+        <section class="lbw_panel lbw_is-active" id="lbw_panelSwipe" aria-label="滑动卡片">
+            <div class="lbw_swipe-viewport" id="lbw_swipeViewport">
+                <div class="lbw_swipe-track" id="lbw_swipeTrack">
+                    <article class="lbw_swipe-card lbw_swipe-card-1">
+                        <span class="lbw_swipe-emoji">🍲</span>
+                        <h2 class="lbw_swipe-name">红烧狮子头</h2>
+                        <p class="lbw_swipe-desc">肉圆先煎后炖，砂锅小火煨足两小时，入口即化，汤汁拌饭是隐藏吃法。</p>
+                    </article>
+                    <article class="lbw_swipe-card lbw_swipe-card-2">
+                        <span class="lbw_swipe-emoji">🍤</span>
+                        <h2 class="lbw_swipe-name">龙井虾仁</h2>
+                        <p class="lbw_swipe-desc">虾仁上浆滑炒，起锅前撒一把龙井嫩芽，茶香清雅，是杭帮菜里的春日代表。</p>
+                    </article>
+                    <article class="lbw_swipe-card lbw_swipe-card-3">
+                        <span class="lbw_swipe-emoji">🌶️</span>
+                        <h2 class="lbw_swipe-name">麻婆豆腐</h2>
+                        <p class="lbw_swipe-desc">郫县豆瓣炒出红油，豆腐轻推不翻，最后撒花椒面，麻、辣、烫、香缺一不可。</p>
+                    </article>
+                    <article class="lbw_swipe-card lbw_swipe-card-4">
+                        <span class="lbw_swipe-emoji">🍖</span>
+                        <h2 class="lbw_swipe-name">糖醋小排</h2>
+                        <p class="lbw_swipe-desc">冰糖炒色、香醋收汁，酸甜挂在骨头上，最后那点焦糖味最勾人。</p>
+                    </article>
+                </div>
+                <div class="lbw_swipe-tip" id="lbw_swipeTip">已经是第一张</div>
+            </div>
+
+            <div class="lbw_swipe-bar">
+                <span>左右滑动切换</span>
+                <span id="lbw_swipeCounter">第 1/4 张</span>
+            </div>
+            <p class="lbw_swipe-hint">阈值 40px，短距离误触不切换；切换后 300ms 冷却，快速连滑一次只进一张；横向拖动时页面不会跟着上下滚。</p>
+        </section>
+
+        <!-- ========== 面板 2：图片缩放 ========== -->
+        <section class="lbw_panel" id="lbw_panelZoom" aria-label="图片缩放">
+            <div class="lbw_zoom-head">
+                <span>双指捏合 / 单指拖动 / 双击</span>
+                <span class="lbw_zoom-scale" id="lbw_zoomScale">1.0x</span>
+            </div>
+            <div class="lbw_zoom-viewer" id="lbw_zoomViewer">
+                <img class="lbw_zoom-image" id="lbw_zoomImage" src="images/lbw_zoom_garden.jpg"
+                    alt="江南园林一角：亭台、红灯笼与锦鲤池" draggable="false">
+            </div>
+            <p class="lbw_zoom-tips">
+                双指捏合缩放 1～4 倍，以两指中点为基准；超出 1～4 倍有阻尼，松手自动弹回；放大后单指拖动，松手回到边界内，1x 时拖不动；双击在 1x 与 2x 之间切换，过渡 0.25 秒；旋转屏幕后缩放状态保留。
+            </p>
+        </section>
+
+        <!-- ========== 面板 3：摇一摇 ========== -->
+        <section class="lbw_panel" id="lbw_panelShake" aria-label="摇一摇抽菜谱">
+            <p class="lbw_shake-prompt">摇一摇手机，抽今日菜谱</p>
+
+            <div class="lbw_shake-result" id="lbw_shakeResult">
+                <span class="lbw_shake-emoji" id="lbw_shakeEmoji">🍽️</span>
+                <h2 class="lbw_shake-name" id="lbw_shakeName">等待摇一摇…</h2>
+                <p class="lbw_shake-desc" id="lbw_shakeDesc">用力摇一摇手机，看看今天吃什么。</p>
+            </div>
+
+            <p class="lbw_shake-status" id="lbw_shakeStatus">切换到本页后开始检测重力感应…</p>
+
+            <div class="lbw_shake-fallback" id="lbw_shakeFallback">
+                <p class="lbw_shake-fallback-text">当前设备不支持，请用手机打开</p>
+                <button class="lbw_btn" id="lbw_shakeBtn" type="button">点我抽一次</button>
+            </div>
+
+            <p class="lbw_shake-status" id="lbw_shakePermissionWrap" style="display:none;">
+                <button class="lbw_btn" id="lbw_shakePermissionBtn" type="button">开启摇一摇（需要授权）</button>
+            </p>
+
+            <div class="lbw_note">
+                <p class="lbw_note-title">为什么必须做降级</p>
+                <p>
+                    devicemotion 不是所有环境都能用：桌面浏览器基本拿不到运动数据；iOS 13 以后要在用户点击时调用
+                    DeviceMotionEvent.requestPermission() 授权，未授权或页面不是 HTTPS 时事件不会派发；
+                    就算事件触发了，accelerationIncludingGravity 也可能是 null，或者设备压根没有重力感应器。
+                    只靠「摇一摇」触发的话，这些用户会面对一个永远抽不出菜的死页面，所以必须准备「点我抽一次」按钮。
+                </p>
+            </div>
+        </section>
+
+        <footer>柳博文 · 24002120602 · 高级网页设计实践</footer>
+    </div>
+
+    <div class="lbw_zoom-toast" id="lbw_zoomToast">双指缩放请用手机打开</div>
+
+    <script>
+        /* =========================================================
+           公共：选项卡切换
+           ========================================================= */
+        var lbw_tabButtons = Array.prototype.slice.call(document.querySelectorAll(".lbw_tab"));
+        var lbw_isZoomFirstShow = true;
+
+        /**
+         * 切换选项卡：同步按钮状态、面板显隐，并按需初始化对应模块
+         * @param {string} lbw_panelId 目标面板 id
+         */
+        function lbw_activatePanel(lbw_panelId) {
+            lbw_tabButtons.forEach(function (lbw_btn) {
+                lbw_btn.classList.toggle("lbw_is-active", lbw_btn.getAttribute("data-panel") === lbw_panelId);
+            });
+
+            Array.prototype.slice.call(document.querySelectorAll(".lbw_panel")).forEach(function (lbw_panel) {
+                lbw_panel.classList.toggle("lbw_is-active", lbw_panel.id === lbw_panelId);
+            });
+
+            // 面板从 display:none 变为可见后尺寸才有效，这里重新算一次边界
+            if (lbw_panelId === "lbw_panelZoom") {
+                lbw_zoomResize();
+                if (lbw_isZoomFirstShow) {
+                    lbw_isZoomFirstShow = false;
+                    lbw_zoomShowToast();
+                }
+            }
+
+            // 摇一摇只在面板可见时响应，避免在别的面板里偷偷抽菜
+            lbw_shakeActive = lbw_panelId === "lbw_panelShake";
+            if (lbw_shakeActive && !lbw_shakeStarted) {
+                lbw_shakeStarted = true;
+                lbw_shakeInit();
+            }
+        }
+
+        lbw_tabButtons.forEach(function (lbw_btn) {
+            lbw_btn.addEventListener("click", function () {
+                lbw_activatePanel(this.getAttribute("data-panel"));
+            });
+        });
+
+        /* =========================================================
+           模块 1：滑动卡片
+           ========================================================= */
+        var lbw_swipeTotal = 4;
+        var lbw_swipeCurrent = 0;
+        var lbw_swipeThreshold = 40;    // 横向位移阈值：低于它不算滑动
+        var lbw_swipeLockSlop = 8;      // 判定「横向拖动」的最小位移
+        var lbw_swipeCooldownMs = 300;  // 切换冷却，防止一次手势连跳两张
+        var lbw_swipeIsCooling = false;
+        var lbw_swipeMoveLocked = false;
+        var lbw_swipeStartX = 0;
+        var lbw_swipeStartY = 0;
+        var lbw_swipeDeltaX = 0;
+        var lbw_swipeDeltaY = 0;
+        var lbw_swipeHintTimer = null;
+
+        var lbw_swipeViewport = document.getElementById("lbw_swipeViewport");
+        var lbw_swipeTrack = document.getElementById("lbw_swipeTrack");
+        var lbw_swipeCounter = document.getElementById("lbw_swipeCounter");
+        var lbw_swipeTip = document.getElementById("lbw_swipeTip");
+
+        /**
+         * 渲染当前卡片位置与「第 N/4 张」计数
+         */
+        function lbw_swipeRender() {
+            lbw_swipeTrack.style.transform = "translateX(" + (-lbw_swipeCurrent * 100) + "%)";
+            lbw_swipeCounter.textContent = "第 " + (lbw_swipeCurrent + 1) + "/" + lbw_swipeTotal + " 张";
+        }
+
+        /**
+         * 显示越界提示（已经是第一张 / 最后一张），1.2 秒后淡出
+         * @param {string} lbw_text 提示文字
+         */
+        function lbw_swipeShowTip(lbw_text) {
+            lbw_swipeTip.textContent = lbw_text;
+            lbw_swipeTip.classList.add("lbw_show");
+            clearTimeout(lbw_swipeHintTimer);
+            lbw_swipeHintTimer = setTimeout(function () {
+                lbw_swipeTip.classList.remove("lbw_show");
+            }, 1200);
+        }
+
+        /**
+         * 切换到目标卡片：处理边界提示并开启 300ms 冷却
+         * @param {number} lbw_target 目标序号
+         */
+        function lbw_swipeGo(lbw_target) {
+            if (lbw_swipeIsCooling) {
+                return;
+            }
+            if (lbw_target < 0) {
+                lbw_swipeShowTip("已经是第一张");
+                return;
+            }
+            if (lbw_target > lbw_swipeTotal - 1) {
+                lbw_swipeShowTip("已经是最后一张");
+                return;
+            }
+            lbw_swipeCurrent = lbw_target;
+            lbw_swipeRender();
+
+            // 冷却：一次手势最多切一张
+            lbw_swipeIsCooling = true;
+            setTimeout(function () {
+                lbw_swipeIsCooling = false;
+            }, lbw_swipeCooldownMs);
+        }
+
+        /**
+         * 记录触点起点，并重置手势状态
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_swipeTouchStart(lbw_event) {
+            var lbw_touch = lbw_event.touches[0];
+            lbw_swipeStartX = lbw_touch.clientX;
+            lbw_swipeStartY = lbw_touch.clientY;
+            lbw_swipeDeltaX = 0;
+            lbw_swipeDeltaY = 0;
+            lbw_swipeMoveLocked = false;
+        }
+
+        /**
+         * 拖动过程中实时算位移；确认为横向拖动后阻止页面滚动
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_swipeTouchMove(lbw_event) {
+            var lbw_touch = lbw_event.touches[0];
+            lbw_swipeDeltaX = lbw_touch.clientX - lbw_swipeStartX;
+            lbw_swipeDeltaY = lbw_touch.clientY - lbw_swipeStartY;
+
+            // 横向位移明显大于纵向时锁定为横向手势，挡掉页面的上下滚动
+            if (!lbw_swipeMoveLocked &&
+                Math.abs(lbw_swipeDeltaX) > lbw_swipeLockSlop &&
+                Math.abs(lbw_swipeDeltaX) > Math.abs(lbw_swipeDeltaY)) {
+                lbw_swipeMoveLocked = true;
+            }
+            if (lbw_swipeMoveLocked) {
+                lbw_event.preventDefault();
+            }
+        }
+
+        /**
+         * 松手时用 changedTouches[0] 计算最终位移，超过阈值才切换
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_swipeTouchEnd(lbw_event) {
+            var lbw_touch = lbw_event.changedTouches[0];
+            var lbw_dx = lbw_touch.clientX - lbw_swipeStartX;
+            var lbw_dy = lbw_touch.clientY - lbw_swipeStartY;
+
+            lbw_swipeMoveLocked = false;
+
+            // 纵向位移更大：当作页面滚动，不切卡片
+            if (Math.abs(lbw_dy) > Math.abs(lbw_dx)) {
+                return;
+            }
+            if (Math.abs(lbw_dx) < lbw_swipeThreshold) {
+                return;
+            }
+
+            // 左滑（dx < 0）下一张，右滑上一张
+            lbw_swipeGo(lbw_dx < 0 ? lbw_swipeCurrent + 1 : lbw_swipeCurrent - 1);
+        }
+
+        lbw_swipeViewport.addEventListener("touchstart", lbw_swipeTouchStart, { passive: true });
+        lbw_swipeViewport.addEventListener("touchmove", lbw_swipeTouchMove, { passive: false });
+        lbw_swipeViewport.addEventListener("touchend", lbw_swipeTouchEnd, { passive: true });
+        lbw_swipeRender();
+
+        /* =========================================================
+           模块 2：图片缩放
+           ========================================================= */
+        var lbw_zoomMinScale = 1;
+        var lbw_zoomMaxScale = 4;
+        var lbw_zoomDamping = 0.25;          // 超出范围时的阻尼比例
+        var lbw_zoomScale = 1;
+        var lbw_zoomX = 0;
+        var lbw_zoomY = 0;
+        var lbw_zoomStartScale = 1;
+        var lbw_zoomStartX = 0;
+        var lbw_zoomStartY = 0;
+        var lbw_zoomStartDistance = 0;
+        var lbw_zoomStartMidX = 0;
+        var lbw_zoomStartMidY = 0;
+        var lbw_zoomStartPointerX = 0;
+        var lbw_zoomStartPointerY = 0;
+        var lbw_zoomMode = "none";           // none / drag / pinch
+        var lbw_zoomLastTapTime = 0;
+        var lbw_zoomTapX = 0;
+        var lbw_zoomTapY = 0;
+        var lbw_zoomDoubleTapScale = 2;
+        var lbw_zoomTapGap = 300;            // 双击判定间隔
+        var lbw_zoomTapSlop = 10;            // 双击允许的抖动
+        var lbw_zoomToastTimer = null;
+
+        var lbw_zoomViewer = document.getElementById("lbw_zoomViewer");
+        var lbw_zoomImage = document.getElementById("lbw_zoomImage");
+        var lbw_zoomScaleLabel = document.getElementById("lbw_zoomScale");
+        var lbw_zoomToast = document.getElementById("lbw_zoomToast");
+
+        /**
+         * 计算两指之间的直线距离
+         * @param {Touch} lbw_a 第一根手指
+         * @param {Touch} lbw_b 第二根手指
+         * @returns {number} 距离（px）
+         */
+        function lbw_zoomDistance(lbw_a, lbw_b) {
+            var lbw_dx = lbw_a.clientX - lbw_b.clientX;
+            var lbw_dy = lbw_a.clientY - lbw_b.clientY;
+            return Math.sqrt(lbw_dx * lbw_dx + lbw_dy * lbw_dy);
+        }
+
+        /**
+         * 按当前缩放倍数把位移限制在图片边界内
+         * @param {number} lbw_x 横向位移
+         * @param {number} lbw_y 纵向位移
+         * @param {number} lbw_scale 缩放倍数
+         * @returns {{x: number, y: number}} 收边后的位移
+         */
+        function lbw_zoomClamp(lbw_x, lbw_y, lbw_scale) {
+            var lbw_maxX = Math.max(0, (lbw_zoomImage.offsetWidth * (lbw_scale - 1)) / 2);
+            var lbw_maxY = Math.max(0, (lbw_zoomImage.offsetHeight * (lbw_scale - 1)) / 2);
+            return {
+                x: Math.min(lbw_maxX, Math.max(-lbw_maxX, lbw_x)),
+                y: Math.min(lbw_maxY, Math.max(-lbw_maxY, lbw_y))
+            };
+        }
+
+        /**
+         * 把因阻尼超出 1～4 倍的倍数收回范围，位移按同比例缩放
+         */
+        function lbw_zoomSettle() {
+            var lbw_settled = Math.min(lbw_zoomMaxScale, Math.max(lbw_zoomMinScale, lbw_zoomScale));
+            if (lbw_settled === lbw_zoomScale) {
+                return;
+            }
+            lbw_zoomX = (lbw_zoomX * lbw_settled) / lbw_zoomScale;
+            lbw_zoomY = (lbw_zoomY * lbw_settled) / lbw_zoomScale;
+            lbw_zoomScale = lbw_settled;
+        }
+
+        /**
+         * 应用 transform 并同步倍数文字
+         * @param {boolean} lbw_useTransition 是否带 0.25s 过渡
+         */
+        function lbw_zoomRender(lbw_useTransition) {
+            lbw_zoomImage.style.transition = lbw_useTransition ? "transform .25s ease" : "none";
+            lbw_zoomImage.style.transform =
+                "translate(" + lbw_zoomX + "px, " + lbw_zoomY + "px) scale(" + lbw_zoomScale + ")";
+            lbw_zoomScaleLabel.textContent = lbw_zoomScale.toFixed(1) + "x";
+        }
+
+        /**
+         * 容器尺寸变化后按新尺寸收边，保留缩放倍数
+         */
+        function lbw_zoomResize() {
+            lbw_zoomSettle();
+            var lbw_clamped = lbw_zoomClamp(lbw_zoomX, lbw_zoomY, lbw_zoomScale);
+            lbw_zoomX = lbw_clamped.x;
+            lbw_zoomY = lbw_clamped.y;
+            lbw_zoomRender(false);
+        }
+
+        /**
+         * 显示「双指缩放请用手机打开」提示，3 秒后淡出
+         */
+        function lbw_zoomShowToast() {
+            lbw_zoomToast.classList.add("lbw_show");
+            clearTimeout(lbw_zoomToastTimer);
+            lbw_zoomToastTimer = setTimeout(function () {
+                lbw_zoomToast.classList.remove("lbw_show");
+            }, 3000);
+        }
+
+        /**
+         * 以某个屏幕点为基准缩放：t₁ = a₁ − s₁·(a₀ − t₀)/s₀
+         * a₀ 是手势开始时的落点偏移，a₁ 是当前落点偏移，保证指下的画面不跑
+         * @param {number} lbw_scale 目标倍数
+         * @param {number} lbw_midX 当前基准点 X（屏幕坐标）
+         * @param {number} lbw_midY 当前基准点 Y（屏幕坐标）
+         */
+        function lbw_zoomApply(lbw_scale, lbw_midX, lbw_midY) {
+            var lbw_rect = lbw_zoomViewer.getBoundingClientRect();
+            var lbw_centerX = lbw_rect.left + lbw_rect.width / 2;
+            var lbw_centerY = lbw_rect.top + lbw_rect.height / 2;
+
+            var lbw_startAx = lbw_zoomStartMidX - lbw_centerX;
+            var lbw_startAy = lbw_zoomStartMidY - lbw_centerY;
+            var lbw_nowAx = lbw_midX - lbw_centerX;
+            var lbw_nowAy = lbw_midY - lbw_centerY;
+
+            // 手势开始时落在基准点下的图片坐标
+            var lbw_contentX = (lbw_startAx - lbw_zoomStartX) / lbw_zoomStartScale;
+            var lbw_contentY = (lbw_startAy - lbw_zoomStartY) / lbw_zoomStartScale;
+
+            lbw_zoomScale = lbw_scale;
+            lbw_zoomX = lbw_nowAx - lbw_scale * lbw_contentX;
+            lbw_zoomY = lbw_nowAy - lbw_scale * lbw_contentY;
+
+            var lbw_clamped = lbw_zoomClamp(lbw_zoomX, lbw_zoomY, lbw_zoomScale);
+            lbw_zoomX = lbw_clamped.x;
+            lbw_zoomY = lbw_clamped.y;
+            lbw_zoomRender(false);
+        }
+
+        /**
+         * 记录单指 / 双指的起始状态
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_zoomTouchStart(lbw_event) {
+            // 先按当前尺寸收一次边，旋转屏幕后第一次触摸也能归位
+            lbw_zoomResize();
+
+            if (lbw_event.touches.length >= 2) {
+                var lbw_a = lbw_event.touches[0];
+                var lbw_b = lbw_event.touches[1];
+                lbw_zoomMode = "pinch";
+                lbw_zoomStartDistance = lbw_zoomDistance(lbw_a, lbw_b);
+                lbw_zoomStartScale = lbw_zoomScale;
+                lbw_zoomStartX = lbw_zoomX;
+                lbw_zoomStartY = lbw_zoomY;
+                lbw_zoomStartMidX = (lbw_a.clientX + lbw_b.clientX) / 2;
+                lbw_zoomStartMidY = (lbw_a.clientY + lbw_b.clientY) / 2;
+                return;
+            }
+
+            var lbw_pointer = lbw_event.touches[0];
+            lbw_zoomMode = "drag";
+            lbw_zoomStartX = lbw_zoomX;
+            lbw_zoomStartY = lbw_zoomY;
+            lbw_zoomStartPointerX = lbw_pointer.clientX;
+            lbw_zoomStartPointerY = lbw_pointer.clientY;
+        }
+
+        /**
+         * 双指按距离比例缩放（带阻尼），单指在放大状态下拖动
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_zoomTouchMove(lbw_event) {
+            lbw_event.preventDefault();
+
+            if (lbw_zoomMode === "pinch" && lbw_event.touches.length >= 2) {
+                var lbw_a = lbw_event.touches[0];
+                var lbw_b = lbw_event.touches[1];
+                var lbw_nowDistance = lbw_zoomDistance(lbw_a, lbw_b);
+                if (!lbw_zoomStartDistance) {
+                    return;
+                }
+
+                var lbw_target = lbw_zoomStartScale * (lbw_nowDistance / lbw_zoomStartDistance);
+                // 1～4 倍内跟手；超出时只按 25% 变化，松手再弹回
+                if (lbw_target > lbw_zoomMaxScale) {
+                    lbw_target = lbw_zoomMaxScale + (lbw_target - lbw_zoomMaxScale) * lbw_zoomDamping;
+                }
+                if (lbw_target < lbw_zoomMinScale) {
+                    lbw_target = lbw_zoomMinScale - (lbw_zoomMinScale - lbw_target) * lbw_zoomDamping;
+                }
+
+                lbw_zoomApply(
+                    lbw_target,
+                    (lbw_a.clientX + lbw_b.clientX) / 2,
+                    (lbw_a.clientY + lbw_b.clientY) / 2
+                );
+                return;
+            }
+
+            if (lbw_zoomMode === "drag" && lbw_event.touches.length === 1) {
+                // 1 倍时不允许拖动，避免把图片拖出边界
+                if (lbw_zoomScale <= 1) {
+                    return;
+                }
+                var lbw_pointer = lbw_event.touches[0];
+                var lbw_nextX = lbw_zoomStartX + (lbw_pointer.clientX - lbw_zoomStartPointerX);
+                var lbw_nextY = lbw_zoomStartY + (lbw_pointer.clientY - lbw_zoomStartPointerY);
+                var lbw_clamped = lbw_zoomClamp(lbw_nextX, lbw_nextY, lbw_zoomScale);
+                lbw_zoomX = lbw_clamped.x;
+                lbw_zoomY = lbw_clamped.y;
+                lbw_zoomRender(false);
+            }
+        }
+
+        /**
+         * 松手：双指全部抬起时收回倍数并收边；单指时判断双击
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_zoomTouchEnd(lbw_event) {
+            if (lbw_zoomMode === "pinch") {
+                // 还剩一根手指：转成拖动模式继续处理
+                if (lbw_event.touches.length === 1) {
+                    var lbw_pointer = lbw_event.touches[0];
+                    lbw_zoomMode = "drag";
+                    lbw_zoomStartX = lbw_zoomX;
+                    lbw_zoomStartY = lbw_zoomY;
+                    lbw_zoomStartPointerX = lbw_pointer.clientX;
+                    lbw_zoomStartPointerY = lbw_pointer.clientY;
+                    return;
+                }
+
+                lbw_zoomSettle();
+                var lbw_pinchClamped = lbw_zoomClamp(lbw_zoomX, lbw_zoomY, lbw_zoomScale);
+                lbw_zoomX = lbw_pinchClamped.x;
+                lbw_zoomY = lbw_pinchClamped.y;
+                lbw_zoomRender(true);
+                lbw_zoomMode = "none";
+                return;
+            }
+
+            // 单指：先收边，再判断是不是双击
+            lbw_zoomSettle();
+            var lbw_clamped = lbw_zoomClamp(lbw_zoomX, lbw_zoomY, lbw_zoomScale);
+            lbw_zoomX = lbw_clamped.x;
+            lbw_zoomY = lbw_clamped.y;
+            lbw_zoomRender(true);
+            lbw_zoomMode = "none";
+
+            if (!lbw_event.changedTouches.length) {
+                return;
+            }
+            var lbw_touch = lbw_event.changedTouches[0];
+            var lbw_now = Date.now();
+            var lbw_nearLast = Math.abs(lbw_touch.clientX - lbw_zoomTapX) <= lbw_zoomTapSlop &&
+                Math.abs(lbw_touch.clientY - lbw_zoomTapY) <= lbw_zoomTapSlop;
+
+            if (lbw_now - lbw_zoomLastTapTime <= lbw_zoomTapGap && lbw_nearLast) {
+                lbw_zoomToggleScale(lbw_touch.clientX, lbw_touch.clientY);
+                lbw_zoomLastTapTime = 0;
+                return;
+            }
+
+            lbw_zoomLastTapTime = lbw_now;
+            lbw_zoomTapX = lbw_touch.clientX;
+            lbw_zoomTapY = lbw_touch.clientY;
+        }
+
+        /**
+         * 双击切换：放大到 2 倍（以点击点为基准）或回到 1 倍
+         * @param {number} lbw_tapX 点击点 X
+         * @param {number} lbw_tapY 点击点 Y
+         */
+        function lbw_zoomToggleScale(lbw_tapX, lbw_tapY) {
+            if (lbw_zoomScale > 1) {
+                lbw_zoomScale = 1;
+                lbw_zoomX = 0;
+                lbw_zoomY = 0;
+                lbw_zoomRender(true);
+                return;
+            }
+
+            var lbw_rect = lbw_zoomViewer.getBoundingClientRect();
+            var lbw_ax = lbw_tapX - (lbw_rect.left + lbw_rect.width / 2);
+            var lbw_ay = lbw_tapY - (lbw_rect.top + lbw_rect.height / 2);
+
+            lbw_zoomScale = lbw_zoomDoubleTapScale;
+            lbw_zoomX = lbw_ax - lbw_zoomScale * lbw_ax;
+            lbw_zoomY = lbw_ay - lbw_zoomScale * lbw_ay;
+
+            var lbw_clamped = lbw_zoomClamp(lbw_zoomX, lbw_zoomY, lbw_zoomScale);
+            lbw_zoomX = lbw_clamped.x;
+            lbw_zoomY = lbw_clamped.y;
+            lbw_zoomRender(true);
+        }
+
+        lbw_zoomViewer.addEventListener("touchstart", lbw_zoomTouchStart, { passive: false });
+        lbw_zoomViewer.addEventListener("touchmove", lbw_zoomTouchMove, { passive: false });
+        lbw_zoomViewer.addEventListener("touchend", lbw_zoomTouchEnd, { passive: false });
+        lbw_zoomViewer.addEventListener("touchcancel", lbw_zoomTouchEnd, { passive: false });
+
+        // 旋转屏幕 / 窗口缩放：ResizeObserver 在布局完成后触发，能读到新尺寸
+        if (typeof ResizeObserver === "function") {
+            new ResizeObserver(lbw_zoomResize).observe(lbw_zoomViewer);
+        }
+        window.addEventListener("resize", lbw_zoomResize);
+        window.addEventListener("orientationchange", lbw_zoomResize);
+
+        /* =========================================================
+           模块 3：摇一摇
+           ========================================================= */
+        var lbw_shakeDishes = [
+            { name: "红烧狮子头", desc: "肉质松软，汤汁浓稠，一勺下去满是江南的甜与鲜。", emoji: "🍲" },
+            { name: "龙井虾仁", desc: "茶香清冽，虾仁弹牙，清爽得像西湖边的一场春雨。", emoji: "🍤" },
+            { name: "麻婆豆腐", desc: "麻、辣、烫、香、酥、嫩，六种口感挤在一勺红油里。", emoji: "🌶️" },
+            { name: "糖醋小排", desc: "酸甜收汁，骨边那点肉最香，是很多人小时候的味道。", emoji: "🍖" },
+            { name: "蟹粉小笼", desc: "一咬开先吸汤，再蘸点姜醋，皮薄得能看见里面的汤在晃。", emoji: "🥟" },
+            { name: "葱油拌面", desc: "葱段慢慢熬到焦香，拌开时每条面都裹着一层油光。", emoji: "🍜" }
+        ];
+
+        var lbw_shakeThreshold = 18;      // 合成加速度阈值（静止时约等于重力 9.8）
+        var lbw_shakeCooldownMs = 1500;   // 触发后的冷却，一次摇动只抽一张
+        var lbw_shakeCooling = false;
+        var lbw_shakeHasMotion = false;
+        var lbw_shakeInvalidCount = 0;    // 连续「事件有、数据空」的次数
+        var lbw_shakeCheckTimer = null;
+        var lbw_shakeCooldownTimer = null;
+        var lbw_shakeLastIndex = -1;
+        var lbw_shakeStarted = false;
+        var lbw_shakeActive = false;
+
+        var lbw_shakeName = document.getElementById("lbw_shakeName");
+        var lbw_shakeDesc = document.getElementById("lbw_shakeDesc");
+        var lbw_shakeEmoji = document.getElementById("lbw_shakeEmoji");
+        var lbw_shakeResult = document.getElementById("lbw_shakeResult");
+        var lbw_shakeStatus = document.getElementById("lbw_shakeStatus");
+        var lbw_shakeFallback = document.getElementById("lbw_shakeFallback");
+
+        /**
+         * 随机抽一道菜，尽量不和上一次重复
+         * @returns {Object} 菜品对象
+         */
+        function lbw_shakePick() {
+            var lbw_index = Math.floor(Math.random() * lbw_shakeDishes.length);
+            if (lbw_shakeDishes.length > 1 && lbw_index === lbw_shakeLastIndex) {
+                lbw_index = (lbw_index + 1) % lbw_shakeDishes.length;
+            }
+            lbw_shakeLastIndex = lbw_index;
+            return lbw_shakeDishes[lbw_index];
+        }
+
+        /**
+         * 把菜品显示到卡片上，并播放弹出动画
+         * @param {Object} lbw_dish 菜品对象
+         */
+        function lbw_shakeShow(lbw_dish) {
+            lbw_shakeEmoji.textContent = lbw_dish.emoji;
+            lbw_shakeName.textContent = lbw_dish.name;
+            lbw_shakeDesc.textContent = lbw_dish.desc;
+
+            // 先移除动画类并强制回流，再重新加上，保证每次都能重播
+            lbw_shakeResult.classList.remove("lbw_pop");
+            void lbw_shakeResult.offsetWidth;
+            lbw_shakeResult.classList.add("lbw_pop");
+        }
+
+        /**
+         * 抽一次菜谱：冷却中直接忽略，否则抽取并进入 1.5 秒冷却
+         */
+        function lbw_shakeDraw() {
+            if (lbw_shakeCooling) {
+                return;
+            }
+            lbw_shakeCooling = true;
+            lbw_shakeShow(lbw_shakePick());
+            lbw_shakeStatus.textContent = "已抽到啦，1.5 秒后可以再摇一次";
+
+            clearTimeout(lbw_shakeCooldownTimer);
+            lbw_shakeCooldownTimer = setTimeout(function () {
+                lbw_shakeCooling = false;
+                lbw_shakeStatus.textContent = lbw_shakeHasMotion ? "摇一摇手机，再抽一道菜" : "点按钮可以继续抽";
+            }, lbw_shakeCooldownMs);
+        }
+
+        /**
+         * 显示降级面板：设备不支持或拿不到数据时使用
+         * @param {string} lbw_reason 状态栏文字
+         */
+        function lbw_shakeShowFallback(lbw_reason) {
+            lbw_shakeFallback.classList.add("lbw_show");
+            lbw_shakeStatus.textContent = lbw_reason || "当前设备不支持，请用手机打开";
+        }
+
+        /**
+         * 处理 devicemotion：用 accelerationIncludingGravity 算合成加速度
+         * @param {DeviceMotionEvent} lbw_event 运动事件
+         */
+        function lbw_shakeMotion(lbw_event) {
+            if (!lbw_shakeActive) {
+                return;
+            }
+
+            var lbw_acc = lbw_event.accelerationIncludingGravity;
+
+            // 事件有、但没有加速度数据（桌面浏览器常见）
+            if (!lbw_acc || lbw_acc.x === null || lbw_acc.x === undefined) {
+                lbw_shakeInvalidCount++;
+                // 连续 3 次都为空才认定不支持，避免刚打开时偶发空数据造成误判
+                if (!lbw_shakeHasMotion && lbw_shakeInvalidCount >= 3) {
+                    lbw_shakeShowFallback("当前设备不支持，请用手机打开");
+                }
+                return;
+            }
+
+            lbw_shakeInvalidCount = 0;
+
+            if (!lbw_shakeHasMotion) {
+                lbw_shakeHasMotion = true;
+                clearTimeout(lbw_shakeCheckTimer);
+                lbw_shakeFallback.classList.remove("lbw_show");
+                lbw_shakeStatus.textContent = "摇一摇手机，抽今日菜谱";
+            }
+
+            // 三轴合成加速度：√(x² + y² + z²)
+            var lbw_power = Math.sqrt(
+                lbw_acc.x * lbw_acc.x + lbw_acc.y * lbw_acc.y + lbw_acc.z * lbw_acc.z
+            );
+
+            if (lbw_power > lbw_shakeThreshold) {
+                lbw_shakeDraw();
+            }
+        }
+
+        /**
+         * 绑定 devicemotion 监听，并在 2.5 秒内没有数据时走降级
+         */
+        function lbw_shakeBind() {
+            if (!window.DeviceMotionEvent) {
+                lbw_shakeShowFallback("当前设备不支持，请用手机打开");
+                return;
+            }
+
+            window.addEventListener("devicemotion", lbw_shakeMotion);
+
+            // 事件支持但不派发数据（桌面 / 未授权）：2.5 秒后降级
+            lbw_shakeCheckTimer = setTimeout(function () {
+                if (!lbw_shakeHasMotion) {
+                    lbw_shakeShowFallback("当前设备不支持，请用手机打开");
+                }
+            }, 2500);
+        }
+
+        /**
+         * iOS 13+ 需要用户点击时申请运动权限，授权后再监听
+         */
+        function lbw_shakeRequestPermission() {
+            try {
+                var lbw_permissionPromise = window.DeviceMotionEvent.requestPermission();
+                lbw_permissionPromise.then(function (lbw_state) {
+                    if (lbw_state === "granted") {
+                        document.getElementById("lbw_shakePermissionWrap").style.display = "none";
+                        lbw_shakeBind();
+                    } else {
+                        lbw_shakeShowFallback("未获得运动权限，可以点按钮抽菜");
+                    }
+                }).catch(function () {
+                    lbw_shakeShowFallback("当前设备不支持，请用手机打开");
+                });
+            } catch (lbw_error) {
+                // 非 HTTPS 或不允许申请时 requestPermission 会直接抛错，兜住不白屏
+                lbw_shakeShowFallback("当前环境无法申请运动权限，可以点按钮抽菜");
+            }
+        }
+
+        /**
+         * 摇一摇模块初始化：绑定降级按钮、按设备情况决定监听还是走降级
+         */
+        function lbw_shakeInit() {
+            lbw_shakeStatus.textContent = "正在检测重力感应…";
+
+            document.getElementById("lbw_shakeBtn").addEventListener("click", function () {
+                lbw_shakeDraw();
+            });
+
+            var lbw_permissionWrap = document.getElementById("lbw_shakePermissionWrap");
+            if (window.DeviceMotionEvent && typeof window.DeviceMotionEvent.requestPermission === "function") {
+                lbw_permissionWrap.style.display = "block";
+                document.getElementById("lbw_shakePermissionBtn")
+                    .addEventListener("click", lbw_shakeRequestPermission);
+                lbw_shakeStatus.textContent = "需要先开启运动权限";
+                return;
+            }
+
+            lbw_shakeBind();
+        }
+    </script>
+</body>
+
+</html>
