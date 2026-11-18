@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<!--
+  作者：柳博文-24002120602
+  建立时间：2026-11-18
+  使用大模型：DeepSeek-V4.1-Flash
+  功能名称：摇一摇抽今日菜谱（devicemotion 加速度检测 + 按钮降级）
+-->
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="摇一摇手机，随机抽一道今日菜谱">
+    <title>摇一摇 · 今日菜谱</title>
+    <style>
+        :root {
+            --lbw_bg: #14100c;
+            --lbw_card: #1e1913;
+            --lbw_ink: #fffaf0;
+            --lbw_muted: rgba(255, 250, 240, .6);
+            --lbw_line: rgba(255, 250, 240, .14);
+            --lbw_gold: #f4c95d;
+            --lbw_coral: #ef765f;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--lbw_ink);
+            background: radial-gradient(circle at 50% 0%, #2a2118, var(--lbw_bg) 62%);
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.6;
+        }
+
+        .lbw_app {
+            width: min(100%, 480px);
+            margin: 0 auto;
+            padding: 34px 20px 56px;
+            text-align: center;
+        }
+
+        .lbw_eyebrow {
+            margin: 0 0 8px;
+            color: var(--lbw_gold);
+            font-size: 11px;
+            letter-spacing: .24em;
+        }
+
+        .lbw_title {
+            margin: 0 0 6px;
+            font-size: 26px;
+            letter-spacing: .04em;
+        }
+
+        .lbw_prompt {
+            margin: 0 0 26px;
+            color: var(--lbw_muted);
+            font-size: 14px;
+        }
+
+        /* 结果卡片 */
+        .lbw_result {
+            position: relative;
+            padding: 34px 24px 30px;
+            border: 1px solid var(--lbw_line);
+            border-radius: 20px;
+            background: var(--lbw_card);
+            box-shadow: 0 22px 44px rgba(0, 0, 0, .45);
+            min-height: 210px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .lbw_dish-name {
+            margin: 0;
+            font-size: 30px;
+            letter-spacing: .06em;
+        }
+
+        .lbw_dish-desc {
+            margin: 0;
+            color: var(--lbw_muted);
+            font-size: 14px;
+            line-height: 1.9;
+        }
+
+        .lbw_dish-emoji {
+            font-size: 44px;
+            line-height: 1;
+        }
+
+        /* 弹出动画：缩放 + 淡入 */
+        .lbw_pop {
+            animation: lbw_popIn .45s cubic-bezier(.2, 1.4, .4, 1) both;
+        }
+
+        @keyframes lbw_popIn {
+            0% {
+                transform: scale(.86);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .lbw_status {
+            margin: 16px 0 0;
+            color: var(--lbw_muted);
+            font-size: 13px;
+            min-height: 20px;
+        }
+
+        /* 降级面板：不支持时出现 */
+        .lbw_fallback {
+            display: none;
+            margin-top: 22px;
+            padding: 20px 18px;
+            border: 1px dashed var(--lbw_line);
+            border-radius: 16px;
+            background: rgba(239, 118, 95, .08);
+        }
+
+        .lbw_fallback.lbw_show {
+            display: block;
+        }
+
+        .lbw_fallback-text {
+            margin: 0 0 14px;
+            color: var(--lbw_coral);
+            font-size: 14px;
+        }
+
+        .lbw_btn {
+            appearance: none;
+            border: 0;
+            padding: 13px 26px;
+            border-radius: 999px;
+            background: var(--lbw_gold);
+            color: #1a1408;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform .15s ease, opacity .15s ease;
+        }
+
+        .lbw_btn:active {
+            transform: scale(.96);
+            opacity: .88;
+        }
+
+        .lbw_note {
+            margin-top: 34px;
+            padding: 18px 20px;
+            text-align: left;
+            border-left: 3px solid var(--lbw_gold);
+            background: rgba(244, 201, 93, .07);
+            border-radius: 0 12px 12px 0;
+        }
+
+        .lbw_note-title {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: var(--lbw_gold);
+        }
+
+        .lbw_note p {
+            margin: 0;
+            color: var(--lbw_muted);
+            font-size: 13px;
+            line-height: 1.95;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="lbw_app">
+        <p class="lbw_eyebrow">SHAKE · TODAY'S MENU</p>
+        <h1 class="lbw_title">摇一摇 · 今日菜谱</h1>
+        <p class="lbw_prompt">摇一摇手机，抽今日菜谱</p>
+
+        <div class="lbw_result" id="lbw_result">
+            <span class="lbw_dish-emoji" id="lbw_emoji">🍽️</span>
+            <h2 class="lbw_dish-name" id="lbw_dishName">等待摇一摇…</h2>
+            <p class="lbw_dish-desc" id="lbw_dishDesc">用力摇一摇手机，看看今天吃什么。</p>
+        </div>
+
+        <p class="lbw_status" id="lbw_status">正在检测重力感应…</p>
+
+        <!-- 降级面板：设备不支持或没有数据时显示 -->
+        <div class="lbw_fallback" id="lbw_fallback">
+            <p class="lbw_fallback-text">当前设备不支持，请用手机打开</p>
+            <button class="lbw_btn" id="lbw_drawBtn" type="button">点我抽一次</button>
+        </div>
+
+        <!-- iOS 13+ 需要用户手势授权才能拿到运动数据 -->
+        <p class="lbw_status" id="lbw_permissionWrap" style="display:none;">
+            <button class="lbw_btn" id="lbw_permissionBtn" type="button">开启摇一摇（需要授权）</button>
+        </p>
+
+        <div class="lbw_note">
+            <p class="lbw_note-title">为什么必须做降级</p>
+            <p>
+                devicemotion 不是所有环境都能用：桌面浏览器基本拿不到运动数据；iOS 13 以后要在用户点击时调用
+                DeviceMotionEvent.requestPermission() 授权，未授权或页面不是 HTTPS 时事件不会派发；
+                就算事件触发了，accelerationIncludingGravity 也可能是 null，或者设备压根没有重力感应器。
+                如果只靠「摇一摇」触发，这些用户会面对一个永远抽不出菜的死页面，所以必须准备「点我抽一次」按钮，
+                让功能在任何设备上都有出路。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 菜谱数据：菜名、简介、表情
+        var lbw_dishes = [
+            { name: "红烧狮子头", desc: "肉质松软，汤汁浓稠，一勺下去满是江南的甜与鲜。", emoji: "🍲" },
+            { name: "龙井虾仁", desc: "茶香清冽，虾仁弹牙，清爽得像西湖边的一场春雨。", emoji: "🍤" },
+            { name: "麻婆豆腐", desc: "麻、辣、烫、香、酥、嫩，六种口感挤在一勺红油里。", emoji: "🌶️" },
+            { name: "糖醋小排", desc: "酸甜收汁，骨边那点肉最香，是很多人小时候的味道。", emoji: "🍖" },
+            { name: "蟹粉小笼", desc: "一咬开先吸汤，再蘸点姜醋，皮薄得能看见里面的汤在晃。", emoji: "🥟" },
+            { name: "葱油拌面", desc: "葱段慢慢熬到焦香，拌开时每条面都裹着一层油光。", emoji: "🍜" }
+        ];
+
+        // 判定摇动的合成加速度阈值（静止时约等于重力 9.8）
+        var lbw_threshold = 18;
+        // 触发后的冷却时间，防止一次摇动重复抽奖
+        var lbw_cooldown = 1500;
+        // 冷却中标记
+        var lbw_isCooling = false;
+        // 是否真的收到过带数据的 devicemotion
+        var lbw_hasMotion = false;
+        // 连续收到「事件有、数据为空」的次数，达到 3 次才认定设备不支持
+        var lbw_invalidCount = 0;
+        // 等待运动数据的兜底计时器
+        var lbw_checkTimer = null;
+        // 冷却结束的计时器
+        var lbw_cooldownTimer = null;
+        // 上一次抽到的序号，避免连着抽到同一道菜
+        var lbw_lastIndex = -1;
+
+        var lbw_dishName = document.getElementById("lbw_dishName");
+        var lbw_dishDesc = document.getElementById("lbw_dishDesc");
+        var lbw_emoji = document.getElementById("lbw_emoji");
+        var lbw_result = document.getElementById("lbw_result");
+        var lbw_status = document.getElementById("lbw_status");
+        var lbw_fallback = document.getElementById("lbw_fallback");
+
+        /**
+         * 随机抽一道菜，尽量不和上一次重复
+         * @returns {Object} 菜品对象
+         */
+        function lbw_pickDish() {
+            var lbw_index = Math.floor(Math.random() * lbw_dishes.length);
+            if (lbw_dishes.length > 1 && lbw_index === lbw_lastIndex) {
+                lbw_index = (lbw_index + 1) % lbw_dishes.length;
+            }
+            lbw_lastIndex = lbw_index;
+            return lbw_dishes[lbw_index];
+        }
+
+        /**
+         * 把菜品显示到卡片上，并播放弹出动画
+         * @param {Object} lbw_dish 菜品对象
+         */
+        function lbw_showDish(lbw_dish) {
+            lbw_emoji.textContent = lbw_dish.emoji;
+            lbw_dishName.textContent = lbw_dish.name;
+            lbw_dishDesc.textContent = lbw_dish.desc;
+
+            // 先移除动画类并强制回流，再重新加上，保证每次都能重播
+            lbw_result.classList.remove("lbw_pop");
+            void lbw_result.offsetWidth;
+            lbw_result.classList.add("lbw_pop");
+        }
+
+        /**
+         * 抽一次菜谱：冷却中直接忽略，否则抽取并进入 1.5 秒冷却
+         */
+        function lbw_draw() {
+            if (lbw_isCooling) {
+                return;
+            }
+            lbw_isCooling = true;
+            lbw_showDish(lbw_pickDish());
+            lbw_status.textContent = "已抽到啦，1.5 秒后可以再摇一次";
+
+            clearTimeout(lbw_cooldownTimer);
+            lbw_cooldownTimer = setTimeout(function () {
+                lbw_isCooling = false;
+                lbw_status.textContent = lbw_hasMotion ? "摇一摇手机，再抽一道菜" : "点按钮可以继续抽";
+            }, lbw_cooldown);
+        }
+
+        /**
+         * 显示降级面板：设备不支持或拿不到数据时使用
+         * @param {string} lbw_reason 显示在面板上方的补充说明
+         */
+        function lbw_showFallback(lbw_reason) {
+            lbw_fallback.classList.add("lbw_show");
+            lbw_status.textContent = lbw_reason || "没有检测到运动数据";
+        }
+
+        /**
+         * 处理 devicemotion：用 accelerationIncludingGravity 算合成加速度，超过阈值算摇动
+         * @param {DeviceMotionEvent} lbw_event 运动事件
+         */
+        function lbw_handleMotion(lbw_event) {
+            var lbw_acc = lbw_event.accelerationIncludingGravity;
+
+            // 事件有，但没有加速度数据（桌面浏览器常见）
+            if (!lbw_acc || lbw_acc.x === null || lbw_acc.x === undefined) {
+                lbw_invalidCount++;
+                // 连续 3 次都为空才认定不支持，避免刚打开时偶发空数据造成误判
+                if (!lbw_hasMotion && lbw_invalidCount >= 3) {
+                    lbw_showFallback("当前设备不支持，请用手机打开");
+                }
+                return;
+            }
+
+            lbw_invalidCount = 0;
+
+            if (!lbw_hasMotion) {
+                // 第一次拿到有效数据，说明摇一摇可用
+                lbw_hasMotion = true;
+                clearTimeout(lbw_checkTimer);
+                lbw_fallback.classList.remove("lbw_show");
+                lbw_status.textContent = "摇一摇手机，抽今日菜谱";
+            }
+
+            // 三轴合成加速度：√(x² + y² + z²)
+            var lbw_power = Math.sqrt(
+                lbw_acc.x * lbw_acc.x + lbw_acc.y * lbw_acc.y + lbw_acc.z * lbw_acc.z
+            );
+
+            if (lbw_power > lbw_threshold) {
+                lbw_draw();
+            }
+        }
+
+        /**
+         * 绑定 devicemotion 监听，并在 2.5 秒内没有数据时走降级
+         */
+        function lbw_bindMotion() {
+            if (!window.DeviceMotionEvent) {
+                lbw_showFallback("当前设备不支持，请用手机打开");
+                return;
+            }
+
+            window.addEventListener("devicemotion", lbw_handleMotion);
+
+            // 事件支持但不派发数据（桌面 / 未授权）：2.5 秒后降级
+            lbw_checkTimer = setTimeout(function () {
+                if (!lbw_hasMotion) {
+                    lbw_showFallback("当前设备不支持，请用手机打开");
+                }
+            }, 2500);
+        }
+
+        /**
+         * iOS 13+ 需要用户点击时申请运动权限，授权后再监听
+         */
+        function lbw_requestPermission() {
+            try {
+                var lbw_permissionPromise = window.DeviceMotionEvent.requestPermission();
+                lbw_permissionPromise.then(function (lbw_state) {
+                    if (lbw_state === "granted") {
+                        document.getElementById("lbw_permissionWrap").style.display = "none";
+                        lbw_bindMotion();
+                    } else {
+                        lbw_showFallback("未获得运动权限，可以点按钮抽菜");
+                    }
+                }).catch(function () {
+                    lbw_showFallback("当前设备不支持，请用手机打开");
+                });
+            } catch (lbw_error) {
+                // 非 HTTPS 或浏览器不允许申请时 requestPermission 会直接抛错，这里兜住不白屏
+                lbw_showFallback("当前环境无法申请运动权限，可以点按钮抽菜");
+            }
+        }
+
+        /**
+         * 初始化：绑定按钮、按设备情况决定监听还是走降级
+         */
+        function lbw_init() {
+            // 降级按钮：任何情况下都能手动抽一次
+            document.getElementById("lbw_drawBtn").addEventListener("click", function () {
+                lbw_draw();
+            });
+
+            // iOS 13+ 的权限按钮
+            var lbw_permissionWrap = document.getElementById("lbw_permissionWrap");
+            if (window.DeviceMotionEvent && typeof window.DeviceMotionEvent.requestPermission === "function") {
+                lbw_permissionWrap.style.display = "block";
+                document.getElementById("lbw_permissionBtn").addEventListener("click", lbw_requestPermission);
+                lbw_status.textContent = "需要先开启运动权限";
+                return;
+            }
+
+            lbw_bindMotion();
+        }
+
+        lbw_init();
+    </script>
+</body>
+
+</html>

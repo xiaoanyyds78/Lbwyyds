@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<!--
+  作者：柳博文-24002120602
+  建立时间：2026-11-18
+  使用大模型：DeepSeek-V4.1-Flash
+  功能名称：移动端美食卡片左右滑动切换（touchstart / touchend 手势）
+-->
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="移动端手势练习：左右滑动切换美食卡片">
+    <title>今日食单 · 左右滑动</title>
+    <style>
+        :root {
+            --lbw_bg: #101418;
+            --lbw_ink: #fffdf8;
+            --lbw_muted: rgba(255, 253, 248, .62);
+            --lbw_line: rgba(255, 253, 248, .16);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--lbw_ink);
+            background: var(--lbw_bg);
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.6;
+        }
+
+        .lbw_app {
+            width: min(100%, 480px);
+            margin: 0 auto;
+            padding: 26px 20px 60px;
+        }
+
+        .lbw_eyebrow {
+            margin: 0 0 6px;
+            color: #f4c95d;
+            font-size: 11px;
+            letter-spacing: .22em;
+        }
+
+        .lbw_title {
+            margin: 0 0 22px;
+            font-size: 30px;
+            letter-spacing: .05em;
+        }
+
+        /* 卡片舞台：相对定位，用来放提示文字 */
+        .lbw_stage {
+            position: relative;
+        }
+
+        /* 卡片视口：横向裁切；touch-action: pan-y 表示横向手势交给我们处理，纵向仍可滚动页面 */
+        .lbw_viewport {
+            overflow: hidden;
+            border-radius: 20px;
+            touch-action: pan-y;
+            box-shadow: 0 22px 45px rgba(0, 0, 0, .45);
+        }
+
+        /* 卡片轨道：4 张卡片横排，靠 transform 位移，切换动画 0.3s */
+        .lbw_track {
+            display: flex;
+            transition: transform .3s ease;
+            will-change: transform;
+        }
+
+        .lbw_card {
+            flex: 0 0 100%;
+            min-height: 400px;
+            padding: 26px 24px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            user-select: none;
+        }
+
+        /* 4 道菜各用一套渐变背景 */
+        .lbw_card-1 {
+            background: linear-gradient(155deg, #f7b267 0%, #f25c54 62%, #8c2f39 100%);
+        }
+
+        .lbw_card-2 {
+            background: linear-gradient(155deg, #b8e986 0%, #2b9348 60%, #0b4d51 100%);
+        }
+
+        .lbw_card-3 {
+            background: linear-gradient(155deg, #ffb56b 0%, #e63946 58%, #6a040f 100%);
+        }
+
+        .lbw_card-4 {
+            background: linear-gradient(155deg, #a18cd1 0%, #7b4bb7 58%, #2b1b45 100%);
+        }
+
+        .lbw_card-index {
+            margin-bottom: auto;
+            font-size: 12px;
+            letter-spacing: .18em;
+            color: rgba(255, 253, 248, .78);
+        }
+
+        .lbw_card-name {
+            margin: 0 0 8px;
+            font-size: 28px;
+            letter-spacing: .04em;
+        }
+
+        .lbw_card-desc {
+            margin: 0;
+            font-size: 14px;
+            color: rgba(255, 253, 248, .86);
+        }
+
+        /* 边界提示：浮在卡片中央，淡入淡出 */
+        .lbw_hint {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin: 0;
+            padding: 9px 16px;
+            transform: translate(-50%, -50%);
+            border-radius: 999px;
+            background: rgba(16, 20, 24, .82);
+            color: var(--lbw_ink);
+            font-size: 13px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease;
+        }
+
+        .lbw_hint.lbw_show {
+            opacity: 1;
+        }
+
+        .lbw_footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--lbw_line);
+            font-size: 13px;
+        }
+
+        .lbw_counter {
+            color: var(--lbw_ink);
+            font-size: 15px;
+            letter-spacing: .06em;
+        }
+
+        .lbw_footer-tip {
+            color: var(--lbw_muted);
+        }
+
+        .lbw_tips {
+            margin-top: 34px;
+            padding: 18px 20px;
+            border: 1px dashed var(--lbw_line);
+            border-radius: 14px;
+            color: var(--lbw_muted);
+            font-size: 13px;
+            line-height: 2;
+        }
+
+        .lbw_tips strong {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--lbw_ink);
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="lbw_app">
+        <p class="lbw_eyebrow">TODAY'S MENU · SWIPE</p>
+        <h1 class="lbw_title">今日食单</h1>
+
+        <section class="lbw_stage">
+            <!-- 手势容器：touch-action: pan-y -->
+            <div class="lbw_viewport" id="lbw_viewport">
+                <div class="lbw_track" id="lbw_track">
+                    <article class="lbw_card lbw_card-1">
+                        <span class="lbw_card-index">01 / 04</span>
+                        <h2 class="lbw_card-name">红烧狮子头</h2>
+                        <p class="lbw_card-desc">肉质松软，汤汁浓稠，一勺下去满是江南的甜与鲜。</p>
+                    </article>
+
+                    <article class="lbw_card lbw_card-2">
+                        <span class="lbw_card-index">02 / 04</span>
+                        <h2 class="lbw_card-name">龙井虾仁</h2>
+                        <p class="lbw_card-desc">茶香清冽，虾仁弹牙，清爽得像西湖边的一场春雨。</p>
+                    </article>
+
+                    <article class="lbw_card lbw_card-3">
+                        <span class="lbw_card-index">03 / 04</span>
+                        <h2 class="lbw_card-name">麻婆豆腐</h2>
+                        <p class="lbw_card-desc">麻、辣、烫、香、酥、嫩，六种口感都挤在这一勺红油里。</p>
+                    </article>
+
+                    <article class="lbw_card lbw_card-4">
+                        <span class="lbw_card-index">04 / 04</span>
+                        <h2 class="lbw_card-name">糖醋小排</h2>
+                        <p class="lbw_card-desc">酸甜收汁，骨边那点肉最香，是很多人小时候的味道。</p>
+                    </article>
+                </div>
+            </div>
+
+            <p class="lbw_hint" id="lbw_hint" role="status" aria-live="polite"></p>
+        </section>
+
+        <div class="lbw_footer">
+            <span class="lbw_counter" id="lbw_counter">第 1/4 张</span>
+            <span class="lbw_footer-tip">左滑下一张 · 右滑上一张</span>
+        </div>
+
+        <div class="lbw_tips">
+            <strong>手势说明</strong>
+            横向滑动超过 40px 才切换，短距离误触不响应；每次切换后有 300ms 冷却，快速连滑不会一次跳两张；确认是左右拖动后会阻止默认滚动，在卡片上怎么拖页面都不会跟着上下走（在卡片以外的区域照常滚动）。
+        </div>
+    </div>
+
+    <script>
+        // 卡片总量与当前序号（从 0 开始）
+        var lbw_total = 4;
+        var lbw_current = 0;
+        // 手指按下时的坐标
+        var lbw_startX = 0;
+        var lbw_startY = 0;
+        // 横向位移阈值：40px
+        var lbw_threshold = 40;
+        // 冷却中标记：true 时忽略新的滑动
+        var lbw_isCooling = false;
+        // 提示文字的定时器
+        var lbw_hintTimer = null;
+        // 本次触摸是否已判定为横向拖动：为 true 时阻止页面跟着上下滚动
+        var lbw_moveLocked = false;
+        // 判定横向意图的最小位移（8px），比 40px 切换阈值更早生效
+        var lbw_lockSlop = 8;
+
+        /**
+         * 切换卡片：按位移量算出目标序号，越界时只给提示
+         * @param {number} lbw_step 位移步数，1 为下一张，-1 为上一张
+         */
+        function lbw_switchCard(lbw_step) {
+            var lbw_target = lbw_current + lbw_step;
+
+            if (lbw_target < 0) {
+                lbw_showHint("已经是第一张");
+                return;
+            }
+            if (lbw_target > lbw_total - 1) {
+                lbw_showHint("已经是最后一张");
+                return;
+            }
+
+            lbw_current = lbw_target;
+            // 用 translateX 移动轨道，配合 .3s 过渡形成切换动画
+            document.getElementById("lbw_track").style.transform = "translateX(-" + lbw_current * 100 + "%)";
+            lbw_updateCounter();
+            lbw_startCooldown();
+        }
+
+        /**
+         * 更新底部「第 N/4 张」文字
+         */
+        function lbw_updateCounter() {
+            document.getElementById("lbw_counter").textContent = "第 " + (lbw_current + 1) + "/" + lbw_total + " 张";
+        }
+
+        /**
+         * 在卡片中间显示一条临时提示，1.2 秒后自动淡出
+         * @param {string} lbw_text 提示文字
+         */
+        function lbw_showHint(lbw_text) {
+            var lbw_hint = document.getElementById("lbw_hint");
+            lbw_hint.textContent = lbw_text;
+            lbw_hint.classList.add("lbw_show");
+
+            clearTimeout(lbw_hintTimer);
+            lbw_hintTimer = setTimeout(function () {
+                lbw_hint.classList.remove("lbw_show");
+            }, 1200);
+        }
+
+        /**
+         * 开启 300ms 冷却，防止快速连滑一次跳两张
+         */
+        function lbw_startCooldown() {
+            lbw_isCooling = true;
+            setTimeout(function () {
+                lbw_isCooling = false;
+            }, 300);
+        }
+
+        /**
+         * 记录手指按下的位置，并把横向锁定标记复位
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_handleTouchStart(lbw_event) {
+            lbw_startX = lbw_event.changedTouches[0].clientX;
+            lbw_startY = lbw_event.changedTouches[0].clientY;
+            lbw_moveLocked = false;
+        }
+
+        /**
+         * 手指移动时判断方向：确认是横向拖动就阻止默认行为，页面不会跟着上下滚动
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_handleTouchMove(lbw_event) {
+            var lbw_dx = lbw_event.changedTouches[0].clientX - lbw_startX;
+            var lbw_dy = lbw_event.changedTouches[0].clientY - lbw_startY;
+
+            // 横向位移超过 8px 且大于纵向位移，说明用户想左右滑，锁定本次手势
+            if (!lbw_moveLocked && Math.abs(lbw_dx) > lbw_lockSlop && Math.abs(lbw_dx) > Math.abs(lbw_dy)) {
+                lbw_moveLocked = true;
+            }
+
+            // 锁定后取消浏览器默认的滚动，纵向手指抖动也不会带着页面动
+            if (lbw_moveLocked) {
+                lbw_event.preventDefault();
+            }
+        }
+
+        /**
+         * 手指离开时算横向位移：超过 40px 左滑下一张、右滑上一张
+         * @param {TouchEvent} lbw_event 触摸事件
+         */
+        function lbw_handleTouchEnd(lbw_event) {
+            if (lbw_isCooling) {
+                return;
+            }
+
+            var lbw_endX = lbw_event.changedTouches[0].clientX;
+            var lbw_endY = lbw_event.changedTouches[0].clientY;
+            var lbw_dx = lbw_endX - lbw_startX;
+            var lbw_dy = lbw_endY - lbw_startY;
+
+            // 纵向滑动为主时不处理，交给页面滚动
+            if (Math.abs(lbw_dx) < lbw_threshold || Math.abs(lbw_dx) < Math.abs(lbw_dy)) {
+                return;
+            }
+
+            // 左滑（dx 为负）看下一张，右滑看上一张
+            lbw_switchCard(lbw_dx < 0 ? 1 : -1);
+        }
+
+        /**
+         * 初始化：绑定触摸事件并同步初始序号
+         */
+        function lbw_init() {
+            var lbw_viewport = document.getElementById("lbw_viewport");
+            lbw_viewport.addEventListener("touchstart", lbw_handleTouchStart, { passive: true });
+            // touchmove 必须 passive: false，否则 preventDefault 无效，页面会跟着滚
+            lbw_viewport.addEventListener("touchmove", lbw_handleTouchMove, { passive: false });
+            lbw_viewport.addEventListener("touchend", lbw_handleTouchEnd, { passive: true });
+            lbw_updateCounter();
+        }
+
+        lbw_init();
+    </script>
+</body>
+
+</html>

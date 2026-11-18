@@ -7,9 +7,11 @@
  *              3.2 秒自动播放、手动操作后不中断、圆点分页器可点击。
  *
  * creativeEffect 的 transform 写法（参考 Swiper demo 257-effect-creative）：
- *   creativeEffect.prev / next 描述「非当前页」相对当前页的变换，支持
- *   - translate: [x, y, z]  位移，百分比按容器宽高计算，z 为景深（负值后移）
- *   - rotate:    [x, y, z]  三轴旋转角度（deg）
+ *   creativeEffect.prev  → 当前页「前一张」（已在左侧、已看过的那页）的变换
+ *   creativeEffect.next  → 当前页「后一张」（在右侧、即将进场的那页）的变换
+ *   两者都相对「当前页」描述，支持：
+ *   - translate: [x, y, z]  位移，百分比按容器宽高计算，z 为景深（负值后移、正值前移）
+ *   - rotate:    [x, y, z]  三轴旋转角度（deg），y 轴转动即左右侧转
  *   - scale / opacity       缩放与透明度
  *   - origin:    'center' | 具体坐标，变换原点
  *   - shadow:    true 时自动叠加阴影
@@ -80,21 +82,21 @@
         break;
 
       case "creative":
-        // 电影墙：当前页正面居中，前页向后方左侧退去并微微内转，后页从右侧滑入
+        // 电影墙：当前页正对镜头，前一张向左后方退去（缩小 + 侧转），后一张从右侧放大进场
         lbw_config.effect = "creative";
         lbw_config.creativeEffect = {
           limitProgress: 4,
           shadowPerProgress: true,
           prev: {
-            translate: ["-18%", 0, -260],
-            rotate: [0, 16, -1.5],
-            opacity: 0.55,
+            translate: ["-22%", 0, -300], // x 左移 22%；z 为负 → 后退，看上去变小
+            rotate: [0, 22, -2],          // 绕 Y 轴转 22°，像侧放的海报；z 轴 -2° 轻微倾斜
+            opacity: 0.5,
             shadow: true
           },
           next: {
-            translate: ["104%", 0, -140],
-            rotate: [0, -10, 1.5],
-            opacity: 0.85,
+            translate: ["118%", 0, 120],  // x 停在右侧屏外；z 为正 → 靠近镜头，看上去变大
+            rotate: [0, -22, 2],          // 与 prev 对称的反向侧转
+            opacity: 0.9,
             shadow: true
           }
         };

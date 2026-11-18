@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<!--
+  作者：柳博文
+  建立时间：2026-11-13
+  使用大模型：DeepSeek-V4.1-Flash
+  功能名称：诗词卡片页（上图下文，数据读取 db/db.json 的 poems）
+-->
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="上图下文的诗词卡片，数据来自本地服务器 db/db.json">
+    <title>诗与画 · 诗词卡片</title>
+    <style>
+        :root {
+            --lbw_bg: #f7f4ed;
+            --lbw_card: #fffdf8;
+            --lbw_ink: #18232d;
+            --lbw_muted: #66737d;
+            --lbw_line: #d9ddd8;
+            --lbw_teal: #126e6e;
+            --lbw_coral: #ef765f;
+            --lbw_yellow: #f4c95d;
+            --lbw_shadow: 0 18px 40px rgba(24, 35, 45, .12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--lbw_ink);
+            background:
+                radial-gradient(circle at 90% 4%, rgba(244, 201, 93, .32), transparent 20rem),
+                var(--lbw_bg);
+            font-family: Georgia, "Microsoft YaHei", serif;
+            line-height: 1.6;
+        }
+
+        .lbw_page-header {
+            width: min(1100px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 34px 0 26px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+            border-bottom: 1px solid var(--lbw_line);
+        }
+
+        .lbw_page-title {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 42px);
+            letter-spacing: .04em;
+        }
+
+        .lbw_page-title span {
+            color: var(--lbw_coral);
+        }
+
+        .lbw_page-note {
+            margin: 0;
+            color: var(--lbw_muted);
+            font: 13px/1.8 "Microsoft YaHei", sans-serif;
+            text-align: right;
+        }
+
+        .lbw_poem-list {
+            width: min(1100px, calc(100% - 40px));
+            margin: 34px auto 70px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 26px;
+        }
+
+        /* 上图下文：图片在上，标题与正文在下 */
+        .lbw_poem-card {
+            display: flex;
+            flex-direction: column;
+            background: var(--lbw_card);
+            border: 1px solid var(--lbw_line);
+            border-radius: 3px;
+            overflow: hidden;
+            box-shadow: 0 8px 22px rgba(24, 35, 45, .06);
+            transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+        }
+
+        .lbw_poem-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--lbw_teal);
+            box-shadow: var(--lbw_shadow);
+        }
+
+        .lbw_poem-figure {
+            margin: 0;
+            position: relative;
+            aspect-ratio: 16 / 9;
+            background: linear-gradient(135deg, #1d3b3f, #0b4d51);
+            overflow: hidden;
+        }
+
+        .lbw_poem-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* 图片加载失败时，用这个提示替代空白 */
+        .lbw_poem-figure.lbw_img-failed::after {
+            content: "图片未加载";
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: rgba(255, 253, 248, .72);
+            font: 13px "Microsoft YaHei", sans-serif;
+            letter-spacing: .2em;
+        }
+
+        .lbw_poem-text {
+            padding: 20px 24px 24px;
+        }
+
+        .lbw_poem-title {
+            margin: 0 0 10px;
+            font-size: 22px;
+            letter-spacing: .04em;
+        }
+
+        .lbw_poem-content {
+            margin: 0;
+            color: #4c5960;
+            font: 15px/1.9 "Microsoft YaHei", sans-serif;
+        }
+
+        .lbw_state {
+            grid-column: 1 / -1;
+            padding: 40px 24px;
+            text-align: center;
+            color: var(--lbw_muted);
+            border: 1px dashed #b8c1bc;
+            font: 14px "Microsoft YaHei", sans-serif;
+        }
+
+        .lbw_state code {
+            padding: 2px 7px;
+            background: #eee9df;
+            color: var(--lbw_teal);
+            border-radius: 3px;
+        }
+
+        @media (max-width: 720px) {
+            .lbw_page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .lbw_page-note {
+                text-align: left;
+            }
+
+            .lbw_poem-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="lbw_page-header">
+        <h1 class="lbw_page-title">诗<span>与</span>画</h1>
+        <p class="lbw_page-note">上图下文 · 数据来自 db/db.json 的 poems<br>本地服务器端口 3004</p>
+    </header>
+
+    <main class="lbw_poem-list" id="lbw_poemList" aria-live="polite">
+        <p class="lbw_state" id="lbw_state">正在读取诗词数据…</p>
+    </main>
+
+    <script>
+        // 数据文件地址：相对当前页面，由本地服务器返回
+        var lbw_dataUrl = "db/db.json";
+
+        /**
+         * 生成一张「上图下文」卡片：上面图片，下面标题与正文
+         * @param {Object} lbw_poem 单条诗词数据，含 pic、title、content
+         * @returns {HTMLElement} 卡片元素
+         */
+        function lbw_createCard(lbw_poem) {
+            var lbw_card = document.createElement("article");
+            lbw_card.className = "lbw_poem-card";
+
+            var lbw_figure = document.createElement("figure");
+            lbw_figure.className = "lbw_poem-figure";
+
+            var lbw_img = document.createElement("img");
+            lbw_img.className = "lbw_poem-img";
+            lbw_img.src = lbw_poem.pic || "";
+            lbw_img.alt = lbw_poem.title || "诗词配图";
+            lbw_img.loading = "lazy";
+            // Gitee 图床有防盗链：不带 Referer 才能拿到真图
+            lbw_img.referrerPolicy = "no-referrer";
+            // 图片加载失败时给父级加标记，由 CSS 显示占位文字
+            lbw_img.addEventListener("error", function () {
+                lbw_figure.classList.add("lbw_img-failed");
+            });
+
+            lbw_figure.appendChild(lbw_img);
+
+            var lbw_text = document.createElement("div");
+            lbw_text.className = "lbw_poem-text";
+
+            var lbw_title = document.createElement("h2");
+            lbw_title.className = "lbw_poem-title";
+            lbw_title.textContent = lbw_poem.title || "未命名";
+
+            var lbw_content = document.createElement("p");
+            lbw_content.className = "lbw_poem-content";
+            lbw_content.textContent = lbw_poem.content || "";
+
+            lbw_text.appendChild(lbw_title);
+            lbw_text.appendChild(lbw_content);
+
+            lbw_card.appendChild(lbw_figure);
+            lbw_card.appendChild(lbw_text);
+            return lbw_card;
+        }
+
+        /**
+         * 把 poems 数组渲染成卡片列表
+         * @param {Array} lbw_poems 诗词数组
+         */
+        function lbw_renderPoems(lbw_poems) {
+            var lbw_list = document.getElementById("lbw_poemList");
+            lbw_list.textContent = "";
+
+            if (!lbw_poems.length) {
+                lbw_showState("db/db.json 里的 poems 是空的，先补几条数据吧。");
+                return;
+            }
+
+            lbw_poems.forEach(function (lbw_poem) {
+                lbw_list.appendChild(lbw_createCard(lbw_poem));
+            });
+        }
+
+        /**
+         * 在列表里显示一行提示文字（加载中、出错、空数据都用它）
+         * @param {string} lbw_html 提示内容的 HTML
+         */
+        function lbw_showState(lbw_html) {
+            var lbw_list = document.getElementById("lbw_poemList");
+            var lbw_tip = document.createElement("p");
+            lbw_tip.className = "lbw_state";
+            lbw_tip.innerHTML = lbw_html;
+
+            var lbw_old = document.getElementById("lbw_state");
+            if (lbw_old) {
+                lbw_old.remove();
+            }
+            lbw_list.appendChild(lbw_tip);
+        }
+
+        /**
+         * 用 fetch 向本地服务器请求 db.json，取出 poems 后渲染
+         * @returns {Promise<void>}
+         */
+        async function lbw_loadPoems() {
+            try {
+                var lbw_response = await fetch(lbw_dataUrl, { cache: "no-store" });
+                if (!lbw_response.ok) {
+                    throw new Error("HTTP " + lbw_response.status);
+                }
+                var lbw_data = await lbw_response.json();
+                lbw_renderPoems(Array.isArray(lbw_data.poems) ? lbw_data.poems : []);
+            } catch (lbw_err) {
+                lbw_showState(
+                    "数据加载失败：" + lbw_err.message +
+                    "<br>请先在项目根目录启动服务器：<code>node db/server.js</code>，" +
+                    "再访问 <code>http://127.0.0.1:3004/poems-gallery.html</code>"
+                );
+            }
+        }
+
+        lbw_loadPoems();
+    </script>
+</body>
+
+</html>

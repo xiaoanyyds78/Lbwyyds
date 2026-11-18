@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  作者：柳博文
+  建立时间：2026-11-11
+  使用大模型：DeepSeek-V4.1-Flash
+  功能名称：演示四 · Swiper 初始化示例（new Swiper('#lbw_swiper4', {...})）
+  说明：Swiper 走本地 cdn/swiper/，初始化逻辑在 js/lbw-swiper4.js
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>演示四 · Swiper 初始化示例</title>
+<link rel="stylesheet" href="cdn/swiper/swiper-bundle.min.css">
+<style>
+  :root {
+    --lbw_bg: #0d1117;
+    --lbw_bg-soft: #151b24;
+    --lbw_line: rgba(255, 255, 255, .12);
+    --lbw_ink: #e9edf3;
+    --lbw_muted: #9aa6b6;
+    --lbw_gold: #d8b26a;
+    --lbw_teal: #3fb6a8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    padding: 48px 24px 64px;
+    background:
+      radial-gradient(1100px 520px at 78% -12%, rgba(63, 182, 168, .16), transparent 62%),
+      radial-gradient(900px 460px at 8% 8%, rgba(216, 178, 106, .12), transparent 60%),
+      var(--lbw_bg);
+    color: var(--lbw_ink);
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+
+  .lbw_wrap {
+    width: min(1040px, 100%);
+    margin: 0 auto;
+  }
+
+  .lbw_head {
+    margin-bottom: 30px;
+  }
+
+  .lbw_kicker {
+    display: inline-block;
+    padding: 5px 12px;
+    border: 1px solid var(--lbw_line);
+    color: var(--lbw_gold);
+    font-size: 12px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+
+  .lbw_title {
+    margin: 16px 0 10px;
+    font-size: clamp(26px, 4vw, 40px);
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+
+  .lbw_desc {
+    color: var(--lbw_muted);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .lbw_desc code {
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, .07);
+    color: var(--lbw_teal);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+  }
+
+  /* 轮播容器 */
+  .lbw_swiper {
+    position: relative;
+    margin-top: 26px;
+    border: 1px solid var(--lbw_line);
+    background: var(--lbw_bg-soft);
+    overflow: hidden;
+  }
+
+  .lbw_slide {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 420px;
+    padding: clamp(26px, 5vw, 54px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lbw_slide::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .9;
+    transition: transform .6s ease;
+  }
+
+  .lbw_slide:hover::before {
+    transform: scale(1.04);
+  }
+
+  .lbw_slide-1::before { background: linear-gradient(135deg, #1b2a44 0%, #35507a 52%, #22303f 100%); }
+  .lbw_slide-2::before { background: linear-gradient(135deg, #14332f 0%, #2d6b5c 55%, #17262a 100%); }
+  .lbw_slide-3::before { background: linear-gradient(135deg, #2a2140 0%, #56407c 55%, #221c30 100%); }
+  .lbw_slide-4::before { background: linear-gradient(135deg, #3a2418 0%, #7a4a2a 55%, #2a1a12 100%); }
+
+  .lbw_slide-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 620px;
+  }
+
+  .lbw_no {
+    color: var(--lbw_gold);
+    font: 700 13px/1 Consolas, monospace;
+    letter-spacing: .28em;
+  }
+
+  .lbw_slide-title {
+    margin: 14px 0 10px;
+    font-size: clamp(24px, 3.4vw, 36px);
+    font-weight: 700;
+  }
+
+  .lbw_slide-text {
+    color: rgba(233, 237, 243, .78);
+    font-size: 14px;
+    line-height: 1.85;
+  }
+
+  /* 左右箭头 */
+  .lbw_nav {
+    position: absolute;
+    top: 50%;
+    z-index: 12;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--lbw_line);
+    border-radius: 50%;
+    background: rgba(13, 17, 23, .55);
+    color: var(--lbw_ink);
+    font-size: 18px;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+  }
+
+  .lbw_nav:hover {
+    background: rgba(216, 178, 106, .16);
+    border-color: var(--lbw_gold);
+    color: var(--lbw_gold);
+  }
+
+  .lbw_nav-prev { left: 16px; }
+  .lbw_nav-next { right: 16px; }
+
+  /* 分页器 */
+  .lbw_pager {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 18px;
+    z-index: 12;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .lbw_pager .swiper-pagination-bullet {
+    width: 22px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .3);
+    opacity: 1;
+    transition: background .2s ease, width .2s ease;
+  }
+
+  .lbw_pager .swiper-pagination-bullet-active {
+    width: 40px;
+    background: var(--lbw_gold);
+  }
+
+  /* 状态条 */
+  .lbw_status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    margin-top: 16px;
+    color: var(--lbw_muted);
+    font-size: 13px;
+  }
+
+  .lbw_status b {
+    color: var(--lbw_ink);
+    font-family: Consolas, monospace;
+  }
+
+  /* 配置示例 */
+  .lbw_code {
+    margin-top: 26px;
+    padding: 20px 22px;
+    border: 1px solid var(--lbw_line);
+    background: #0a0e14;
+    overflow-x: auto;
+  }
+
+  .lbw_code-title {
+    margin-bottom: 12px;
+    color: var(--lbw_muted);
+    font-size: 12px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .lbw_code pre {
+    color: #c9d4e3;
+    font: 13px/1.9 Consolas, "Courier New", monospace;
+  }
+
+  .lbw_code .lbw_key { color: #7fc4ff; }
+  .lbw_code .lbw_val { color: #d8b26a; }
+
+  @media (max-width: 560px) {
+    body { padding: 32px 16px 48px; }
+    .lbw_slide { min-height: 360px; }
+    .lbw_nav { width: 36px; height: 36px; font-size: 15px; }
+    .lbw_nav-prev { left: 8px; }
+    .lbw_nav-next { right: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="lbw_wrap">
+
+  <header class="lbw_head">
+    <span class="lbw_kicker">Swiper Init</span>
+    <h1 class="lbw_title">演示四 · 用 id 选择器初始化轮播</h1>
+    <p class="lbw_desc">
+      容器 id 为 <code>lbw_swiper4</code>，初始化语句即
+      <code>new Swiper('#lbw_swiper4', { ... })</code>；配置写在外部
+      <code>js/lbw-swiper4.js</code> 中。
+    </p>
+  </header>
+
+  <!-- 轮播：id 为初始化选择器，类名负责样式 -->
+  <div class="lbw_swiper swiper" id="lbw_swiper4" aria-label="演示轮播">
+    <div class="swiper-wrapper">
+
+      <div class="swiper-slide">
+        <section class="lbw_slide lbw_slide-1">
+          <div class="lbw_slide-inner">
+            <div class="lbw_no">01 / AIR</div>
+            <h2 class="lbw_slide-title">空中力量</h2>
+            <p class="lbw_slide-text">以隐身与超音速巡航为核心，展示国产航空装备的代际跨越。</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="swiper-slide">
+        <section class="lbw_slide lbw_slide-2">
+          <div class="lbw_slide-inner">
+            <div class="lbw_no">02 / RAIL</div>
+            <h2 class="lbw_slide-title">陆地速度</h2>
+            <p class="lbw_slide-text">高速动车组把城市之间的距离压缩到以分钟计算。</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="swiper-slide">
+        <section class="lbw_slide lbw_slide-3">
+          <div class="lbw_slide-inner">
+            <div class="lbw_no">03 / SPACE</div>
+            <h2 class="lbw_slide-title">仰望星空</h2>
+            <p class="lbw_slide-text">大口径射电望远镜把宇宙的微弱信号放大成可读的数据。</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="swiper-slide">
+        <section class="lbw_slide lbw_slide-4">
+          <div class="lbw_slide-inner">
+            <div class="lbw_no">04 / SEA</div>
+            <h2 class="lbw_slide-title">深海探索</h2>
+            <p class="lbw_slide-text">载人深潜器在数千米海底完成取样与观测任务。</p>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <div class="lbw_nav lbw_nav-prev" id="lbw_prev4" role="button" tabindex="0" aria-label="上一张">‹</div>
+    <div class="lbw_nav lbw_nav-next" id="lbw_next4" role="button" tabindex="0" aria-label="下一张">›</div>
+    <div class="lbw_pager" id="lbw_pager4"></div>
+  </div>
+
+  <div class="lbw_status">
+    <span>当前页：<b id="lbw_current4">1</b> / 4</span>
+    <span>自动播放：<b id="lbw_auto4">开</b></span>
+    <span>循环模式：<b>开</b></span>
+  </div>
+
+  <section class="lbw_code" aria-label="初始化代码">
+    <div class="lbw_code-title">js/lbw-swiper4.js</div>
+    <pre><code><span class="lbw_key">new</span> Swiper(<span class="lbw_val">'#lbw_swiper4'</span>, {
+  loop: <span class="lbw_key">true</span>,
+  speed: <span class="lbw_val">650</span>,
+  grabCursor: <span class="lbw_key">true</span>,
+  effect: <span class="lbw_val">'cube'</span>,
+  cubeEffect: { shadow: <span class="lbw_key">true</span>, slideShadows: <span class="lbw_key">true</span>, shadowOffset: <span class="lbw_val">20</span>, shadowScale: <span class="lbw_val">0.94</span> },
+  autoplay: { delay: <span class="lbw_val">3200</span>, disableOnInteraction: <span class="lbw_key">false</span> },
+  pagination: { el: <span class="lbw_val">'#lbw_pager4'</span>, clickable: <span class="lbw_key">true</span> },
+  navigation: { prevEl: <span class="lbw_val">'#lbw_prev4'</span>, nextEl: <span class="lbw_val">'#lbw_next4'</span> },
+  keyboard: { enabled: <span class="lbw_key">true</span> }
+});</code></pre>
+  </section>
+
+</div>
+
+<script src="cdn/swiper/swiper-bundle.min.js"></script>
+<script src="js/lbw-swiper4.js"></script>
+</body>
+</html>
