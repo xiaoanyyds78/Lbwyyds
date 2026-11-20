@@ -269,6 +269,24 @@
             line-height: 1.9;
         }
 
+        /* 面板下方追加的视频：带原生播放控件 */
+        .lbw_video {
+            display: block;
+            width: 100%;
+            max-height: 62vh;
+            margin-top: 18px;
+            border: 1px solid var(--lbw_line);
+            border-radius: 16px;
+            background: #05070a;
+            object-fit: contain;
+        }
+
+        .lbw_video-caption {
+            margin: 8px 0 0;
+            color: var(--lbw_muted);
+            font-size: 12px;
+        }
+
         .lbw_zoom-toast {
             position: fixed;
             left: 50%;
@@ -488,6 +506,10 @@
             <p class="lbw_zoom-tips">
                 双指捏合缩放 1～4 倍，以两指中点为基准；超出 1～4 倍有阻尼，松手自动弹回；放大后单指拖动，松手回到边界内，1x 时拖不动；双击在 1x 与 2x 之间切换，过渡 0.25 秒；旋转屏幕后缩放状态保留。
             </p>
+
+            <video class="lbw_video" id="lbw_zoomVideo" src="videos/lbw_zoom_video.mp4"
+                controls playsinline preload="metadata"></video>
+            <p class="lbw_video-caption">缩放模块演示视频</p>
         </section>
 
         <!-- ========== 面板 3：摇一摇 ========== -->
@@ -520,6 +542,10 @@
                     只靠「摇一摇」触发的话，这些用户会面对一个永远抽不出菜的死页面，所以必须准备「点我抽一次」按钮。
                 </p>
             </div>
+
+            <video class="lbw_video" id="lbw_shakeVideo" src="videos/lbw_shake_video.mp4"
+                controls playsinline preload="metadata"></video>
+            <p class="lbw_video-caption">摇一摇模块演示视频</p>
         </section>
 
         <footer>柳博文 · 24002120602 · 高级网页设计实践</footer>
